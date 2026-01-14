@@ -1,17 +1,13 @@
 import { App, Notice, Platform, Plugin, PluginManifest } from "obsidian";
-import { spawn, ChildProcess } from "child_process";
+import { ShellSession } from "./shell/session";
 
 /**
- * Phase 0: Architecture Validation Plugin
+ * Obsidian Runbook Plugin
  *
- * This plugin validates that we can:
- * 1. Access Node.js child_process APIs
- * 2. Spawn and communicate with a persistent shell
- * 3. Maintain shell state across commands
+ * Executes code blocks directly from markdown notes using a persistent shell session.
  */
 export default class RunbookPlugin extends Plugin {
-	private shellProcess: ChildProcess | null = null;
-	private shellOutput: string = "";
+	private session: ShellSession | null = null;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
@@ -26,206 +22,185 @@ export default class RunbookPlugin extends Plugin {
 
 		console.log("Runbook: Plugin loading...");
 
-		// Register validation commands
+		// Initialize shell session
+		this.session = new ShellSession();
+
+		// Set up session event listeners
+		this.session.on("stateChange", (state) => {
+			console.log(`Runbook: Shell state changed to: ${state}`);
+		});
+
+		this.session.on("error", (error) => {
+			console.error("Runbook: Shell error:", error);
+			new Notice(`Shell error: ${error.message}`);
+		});
+
+		// Register commands for manual verification
 		this.addCommand({
-			id: "test-child-process",
-			name: "Test: child_process.spawn (echo hello)",
-			callback: () => this.testChildProcess(),
+			id: "start-shell",
+			name: "Start shell session",
+			callback: () => this.startShell(),
 		});
 
 		this.addCommand({
-			id: "test-spawn-shell",
-			name: "Test: Spawn persistent shell",
-			callback: () => this.testSpawnShell(),
+			id: "execute-test-command",
+			name: "Execute test command (echo hello)",
+			callback: () => this.executeTestCommand(),
 		});
 
 		this.addCommand({
-			id: "test-shell-state",
-			name: "Test: Shell state persistence (export & echo)",
-			callback: () => this.testShellState(),
+			id: "check-shell-state",
+			name: "Check shell state (export & echo)",
+			callback: () => this.checkShellState(),
 		});
 
 		this.addCommand({
-			id: "test-kill-shell",
-			name: "Test: Kill shell session",
-			callback: () => this.testKillShell(),
+			id: "get-session-status",
+			name: "Get session status",
+			callback: () => this.getSessionStatus(),
 		});
 
-		new Notice("Runbook: Validation plugin loaded. Use command palette to run tests.");
+		this.addCommand({
+			id: "restart-shell",
+			name: "Restart shell session",
+			callback: () => this.restartShell(),
+		});
+
+		new Notice("Runbook: Plugin loaded. Use command palette for shell commands.");
 		console.log("Runbook: Plugin loaded successfully");
 	}
 
 	async onunload() {
 		console.log("Runbook: Plugin unloading...");
-		this.killShell();
-	}
-
-	/**
-	 * Test 1: Basic child_process.spawn
-	 * Verifies we can spawn a simple command and capture output
-	 */
-	private testChildProcess(): void {
-		console.log("Runbook: Testing child_process.spawn...");
-
-		try {
-			const proc = spawn("echo", ["hello from child_process"]);
-
-			let output = "";
-			let errorOutput = "";
-
-			proc.stdout.on("data", (data: Buffer) => {
-				output += data.toString();
-			});
-
-			proc.stderr.on("data", (data: Buffer) => {
-				errorOutput += data.toString();
-			});
-
-			proc.on("close", (code: number) => {
-				if (code === 0) {
-					new Notice(`✅ child_process works!\nOutput: ${output.trim()}`);
-					console.log("Runbook: child_process test PASSED", { output: output.trim() });
-				} else {
-					new Notice(`❌ child_process failed with code ${code}\nError: ${errorOutput}`);
-					console.error("Runbook: child_process test FAILED", { code, errorOutput });
-				}
-			});
-
-			proc.on("error", (err: Error) => {
-				new Notice(`❌ child_process error: ${err.message}`);
-				console.error("Runbook: child_process test ERROR", err);
-			});
-		} catch (err) {
-			new Notice(`❌ child_process not available: ${err}`);
-			console.error("Runbook: child_process not available", err);
+		if (this.session) {
+			this.session.kill();
+			this.session = null;
 		}
 	}
 
 	/**
-	 * Test 2: Spawn a persistent shell
-	 * Verifies we can spawn bash/sh and keep it running
+	 * Start the shell session
 	 */
-	private testSpawnShell(): void {
-		console.log("Runbook: Testing persistent shell spawn...");
+	private startShell(): void {
+		if (!this.session) {
+			new Notice("Session not initialized");
+			return;
+		}
 
-		if (this.shellProcess) {
-			new Notice("Shell already running. Kill it first.");
+		if (this.session.isAlive) {
+			new Notice(`Shell already running (PID: ${this.session.pid})`);
 			return;
 		}
 
 		try {
-			// Try bash first, fall back to sh
-			const shell = process.platform === "win32" ? "cmd.exe" : "/bin/bash";
-			const args = process.platform === "win32" ? [] : ["--norc", "--noprofile", "-i"];
-
-			this.shellProcess = spawn(shell, args, {
-				stdio: ["pipe", "pipe", "pipe"],
-				env: { ...process.env, TERM: "dumb" },
-			});
-
-			this.shellOutput = "";
-
-			this.shellProcess.stdout?.on("data", (data: Buffer) => {
-				const text = data.toString();
-				this.shellOutput += text;
-				console.log("Runbook: Shell stdout:", text);
-			});
-
-			this.shellProcess.stderr?.on("data", (data: Buffer) => {
-				const text = data.toString();
-				this.shellOutput += text;
-				console.log("Runbook: Shell stderr:", text);
-			});
-
-			this.shellProcess.on("close", (code: number) => {
-				console.log("Runbook: Shell closed with code", code);
-				this.shellProcess = null;
-			});
-
-			this.shellProcess.on("error", (err: Error) => {
-				new Notice(`❌ Shell error: ${err.message}`);
-				console.error("Runbook: Shell error", err);
-				this.shellProcess = null;
-			});
-
-			new Notice(`✅ Shell spawned (${shell})\nPID: ${this.shellProcess.pid}`);
-			console.log("Runbook: Shell spawned", { shell, pid: this.shellProcess.pid });
+			this.session.spawn();
+			new Notice(`✅ Shell started (PID: ${this.session.pid})`);
+			console.log("Runbook: Shell started", { pid: this.session.pid });
 		} catch (err) {
-			new Notice(`❌ Failed to spawn shell: ${err}`);
-			console.error("Runbook: Failed to spawn shell", err);
+			new Notice(`❌ Failed to start shell: ${err}`);
+			console.error("Runbook: Failed to start shell", err);
 		}
 	}
 
 	/**
-	 * Test 3: Shell state persistence
-	 * Verifies that shell state (variables, cd, etc.) persists across commands
+	 * Execute a test command
 	 */
-	private testShellState(): void {
-		console.log("Runbook: Testing shell state persistence...");
+	private async executeTestCommand(): Promise<void> {
+		if (!this.session) {
+			new Notice("Session not initialized");
+			return;
+		}
 
-		if (!this.shellProcess || !this.shellProcess.stdin) {
-			new Notice("No shell running. Spawn one first.");
+		if (!this.session.isAlive) {
+			new Notice("Shell not running. Start it first.");
 			return;
 		}
 
 		try {
-			// Clear previous output
-			this.shellOutput = "";
-
-			// Create a unique marker to identify our output
-			const marker = `__RUNBOOK_TEST_${Date.now()}__`;
-			const testValue = "runbook_works_" + Math.random().toString(36).substring(7);
-
-			// Send commands: export a variable, then echo it with markers
-			const commands = [
-				`export RUNBOOK_TEST_VAR="${testValue}"`,
-				`echo "${marker}_START"`,
-				`echo "VALUE=$RUNBOOK_TEST_VAR"`,
-				`echo "${marker}_END"`,
-			].join("\n") + "\n";
-
-			this.shellProcess.stdin.write(commands);
-
-			// Wait a bit and check output
-			setTimeout(() => {
-				const output = this.shellOutput;
-				console.log("Runbook: Shell output after state test:", output);
-
-				if (output.includes(`VALUE=${testValue}`)) {
-					new Notice(`✅ Shell state persists!\nVariable was preserved across commands.`);
-					console.log("Runbook: Shell state test PASSED");
-				} else if (output.includes("VALUE=")) {
-					new Notice(`⚠️ Shell responded but variable may not have persisted.\nCheck console for details.`);
-					console.log("Runbook: Shell state test PARTIAL", { output });
-				} else {
-					new Notice(`⚠️ Waiting for shell output...\nCheck console for details.`);
-					console.log("Runbook: Shell state test PENDING", { output });
-				}
-			}, 500);
+			new Notice("Executing: echo hello");
+			const output = await this.session.execute("echo hello");
+			new Notice(`✅ Output: ${output}`);
+			console.log("Runbook: Command executed", { output });
 		} catch (err) {
-			new Notice(`❌ Shell state test failed: ${err}`);
-			console.error("Runbook: Shell state test failed", err);
+			new Notice(`❌ Execution failed: ${err}`);
+			console.error("Runbook: Execution failed", err);
 		}
 	}
 
 	/**
-	 * Kill the persistent shell
+	 * Check shell state persistence
 	 */
-	private testKillShell(): void {
-		if (this.killShell()) {
-			new Notice("✅ Shell killed");
-		} else {
-			new Notice("No shell running");
+	private async checkShellState(): Promise<void> {
+		if (!this.session) {
+			new Notice("Session not initialized");
+			return;
+		}
+
+		if (!this.session.isAlive) {
+			new Notice("Shell not running. Start it first.");
+			return;
+		}
+
+		try {
+			const testValue = "runbook_" + Math.random().toString(36).slice(2, 8);
+
+			// Set a variable
+			new Notice(`Setting TEST_VAR=${testValue}`);
+			await this.session.execute(`export TEST_VAR="${testValue}"`);
+
+			// Read it back
+			const output = await this.session.execute("echo $TEST_VAR");
+
+			if (output.trim() === testValue) {
+				new Notice(`✅ State persists!\nTEST_VAR=${output.trim()}`);
+				console.log("Runbook: State persistence test PASSED");
+			} else {
+				new Notice(`⚠️ State may not persist.\nExpected: ${testValue}\nGot: ${output.trim()}`);
+				console.log("Runbook: State persistence test PARTIAL", { expected: testValue, got: output });
+			}
+		} catch (err) {
+			new Notice(`❌ State check failed: ${err}`);
+			console.error("Runbook: State check failed", err);
 		}
 	}
 
-	private killShell(): boolean {
-		if (this.shellProcess) {
-			console.log("Runbook: Killing shell", { pid: this.shellProcess.pid });
-			this.shellProcess.kill();
-			this.shellProcess = null;
-			return true;
+	/**
+	 * Get current session status
+	 */
+	private getSessionStatus(): void {
+		if (!this.session) {
+			new Notice("Session not initialized");
+			return;
 		}
-		return false;
+
+		const status = {
+			state: this.session.state,
+			pid: this.session.pid,
+			isAlive: this.session.isAlive,
+		};
+
+		const statusText = `State: ${status.state}\nPID: ${status.pid || "N/A"}\nAlive: ${status.isAlive}`;
+		new Notice(`Shell Status:\n${statusText}`);
+		console.log("Runbook: Session status", status);
+	}
+
+	/**
+	 * Restart the shell session
+	 */
+	private restartShell(): void {
+		if (!this.session) {
+			new Notice("Session not initialized");
+			return;
+		}
+
+		try {
+			const oldPid = this.session.pid;
+			this.session.restart();
+			new Notice(`✅ Shell restarted\nOld PID: ${oldPid}\nNew PID: ${this.session.pid}`);
+			console.log("Runbook: Shell restarted", { oldPid, newPid: this.session.pid });
+		} catch (err) {
+			new Notice(`❌ Restart failed: ${err}`);
+			console.error("Runbook: Restart failed", err);
+		}
 	}
 }
