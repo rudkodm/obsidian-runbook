@@ -1,7 +1,18 @@
 #!/bin/bash
 
 # Install plugin to Obsidian vault
-PLUGIN_DIR="/Users/drudko/Documents/Obsedian/IAS/.obsidian/plugins/obsidian-runbook"
+# Set OBSIDIAN_PLUGINS_HOME in your shell profile, e.g.:
+#   export OBSIDIAN_PLUGINS_HOME="/Users/you/Documents/Obsidian/MyVault/.obsidian/plugins"
+
+if [ -z "$OBSIDIAN_PLUGINS_HOME" ]; then
+	echo "Error: OBSIDIAN_PLUGINS_HOME is not set"
+	echo ""
+	echo "Set it in your shell profile (~/.zshrc or ~/.bashrc):"
+	echo "  export OBSIDIAN_PLUGINS_HOME=\"/path/to/vault/.obsidian/plugins\""
+	exit 1
+fi
+
+PLUGIN_DIR="$OBSIDIAN_PLUGINS_HOME/obsidian-runbook"
 
 # Create plugin directory
 mkdir -p "$PLUGIN_DIR"
