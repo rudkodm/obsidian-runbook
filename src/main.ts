@@ -42,7 +42,7 @@ export default class RunbookPlugin extends Plugin {
 			new Notice(`Shell error: ${error.message}`);
 		});
 
-		// Main command: Execute line or selection (Ctrl/Cmd + Enter)
+		// Main command: Execute line or selection (Shift + Cmd/Ctrl + Enter)
 		this.addCommand({
 			id: "execute-line-or-selection",
 			name: "Execute line or selection",
@@ -51,7 +51,7 @@ export default class RunbookPlugin extends Plugin {
 			},
 			hotkeys: [
 				{
-					modifiers: ["Mod"],
+					modifiers: ["Mod", "Shift"],
 					key: "Enter",
 				},
 			],
