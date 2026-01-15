@@ -1,5 +1,12 @@
-import { App, Notice, Platform, Plugin, PluginManifest } from "obsidian";
+import { App, Editor, MarkdownView, Notice, Platform, Plugin, PluginManifest } from "obsidian";
 import { ShellSession } from "./shell/session";
+import {
+	getCodeBlockContext,
+	getTextToExecute,
+	isLanguageSupported,
+	advanceCursorToNextLine,
+	stripPromptPrefix,
+} from "./editor/code-block";
 
 /**
  * Obsidian Runbook Plugin
@@ -35,29 +42,26 @@ export default class RunbookPlugin extends Plugin {
 			new Notice(`Shell error: ${error.message}`);
 		});
 
-		// Register commands for manual verification
+		// Main command: Execute line or selection (Ctrl/Cmd + Enter)
+		this.addCommand({
+			id: "execute-line-or-selection",
+			name: "Execute line or selection",
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				this.executeLineOrSelection(editor);
+			},
+			hotkeys: [
+				{
+					modifiers: ["Mod"],
+					key: "Enter",
+				},
+			],
+		});
+
+		// Shell management commands
 		this.addCommand({
 			id: "start-shell",
 			name: "Start shell session",
 			callback: () => this.startShell(),
-		});
-
-		this.addCommand({
-			id: "execute-test-command",
-			name: "Execute test command (echo hello)",
-			callback: () => this.executeTestCommand(),
-		});
-
-		this.addCommand({
-			id: "check-shell-state",
-			name: "Check shell state (export & echo)",
-			callback: () => this.checkShellState(),
-		});
-
-		this.addCommand({
-			id: "get-session-status",
-			name: "Get session status",
-			callback: () => this.getSessionStatus(),
 		});
 
 		this.addCommand({
@@ -66,7 +70,17 @@ export default class RunbookPlugin extends Plugin {
 			callback: () => this.restartShell(),
 		});
 
-		new Notice("Runbook: Plugin loaded. Use command palette for shell commands.");
+		this.addCommand({
+			id: "get-session-status",
+			name: "Get session status",
+			callback: () => this.getSessionStatus(),
+		});
+
+		// Auto-start shell session
+		this.session.spawn();
+		console.log("Runbook: Shell auto-started", { pid: this.session.pid });
+
+		new Notice(`Runbook: Ready (PID: ${this.session.pid})`);
 		console.log("Runbook: Plugin loaded successfully");
 	}
 
@@ -75,6 +89,83 @@ export default class RunbookPlugin extends Plugin {
 		if (this.session) {
 			this.session.kill();
 			this.session = null;
+		}
+	}
+
+	/**
+	 * Execute the current line or selection in the code block
+	 */
+	private async executeLineOrSelection(editor: Editor): Promise<void> {
+		// Ensure shell is running
+		if (!this.session) {
+			new Notice("Session not initialized");
+			return;
+		}
+
+		if (!this.session.isAlive) {
+			new Notice("Shell not running. Restarting...");
+			try {
+				this.session.spawn();
+			} catch (err) {
+				new Notice(`Failed to start shell: ${err}`);
+				return;
+			}
+		}
+
+		// Get code block context
+		const context = getCodeBlockContext(editor);
+
+		if (!context.inCodeBlock || !context.codeBlock) {
+			new Notice("Not inside a code block");
+			return;
+		}
+
+		// Check if language is supported
+		if (!isLanguageSupported(context.codeBlock.language)) {
+			new Notice(`Unsupported language: ${context.codeBlock.language || "(none)"}`);
+			return;
+		}
+
+		// Get text to execute
+		const textInfo = getTextToExecute(editor);
+		if (!textInfo) {
+			new Notice("No text to execute (empty line)");
+			return;
+		}
+
+		// Strip prompt prefix if present ($ or >)
+		const command = stripPromptPrefix(textInfo.text);
+
+		console.log("Runbook: Executing", {
+			command,
+			isSelection: textInfo.isSelection,
+			language: context.codeBlock.language,
+		});
+
+		try {
+			const output = await this.session.execute(command);
+
+			// Show output in notice (truncate if too long)
+			const maxLen = 200;
+			const displayOutput = output.length > maxLen
+				? output.slice(0, maxLen) + "..."
+				: output;
+
+			if (output.trim()) {
+				new Notice(`Output:\n${displayOutput}`);
+			} else {
+				new Notice("Command executed (no output)");
+			}
+
+			console.log("Runbook: Execution complete", { output });
+
+			// Auto-advance cursor if not a selection
+			if (!textInfo.isSelection) {
+				advanceCursorToNextLine(editor);
+			}
+		} catch (err) {
+			new Notice(`Execution failed: ${err}`);
+			console.error("Runbook: Execution failed", err);
 		}
 	}
 
@@ -94,73 +185,11 @@ export default class RunbookPlugin extends Plugin {
 
 		try {
 			this.session.spawn();
-			new Notice(`✅ Shell started (PID: ${this.session.pid})`);
+			new Notice(`Shell started (PID: ${this.session.pid})`);
 			console.log("Runbook: Shell started", { pid: this.session.pid });
 		} catch (err) {
-			new Notice(`❌ Failed to start shell: ${err}`);
+			new Notice(`Failed to start shell: ${err}`);
 			console.error("Runbook: Failed to start shell", err);
-		}
-	}
-
-	/**
-	 * Execute a test command
-	 */
-	private async executeTestCommand(): Promise<void> {
-		if (!this.session) {
-			new Notice("Session not initialized");
-			return;
-		}
-
-		if (!this.session.isAlive) {
-			new Notice("Shell not running. Start it first.");
-			return;
-		}
-
-		try {
-			new Notice("Executing: echo hello");
-			const output = await this.session.execute("echo hello");
-			new Notice(`✅ Output: ${output}`);
-			console.log("Runbook: Command executed", { output });
-		} catch (err) {
-			new Notice(`❌ Execution failed: ${err}`);
-			console.error("Runbook: Execution failed", err);
-		}
-	}
-
-	/**
-	 * Check shell state persistence
-	 */
-	private async checkShellState(): Promise<void> {
-		if (!this.session) {
-			new Notice("Session not initialized");
-			return;
-		}
-
-		if (!this.session.isAlive) {
-			new Notice("Shell not running. Start it first.");
-			return;
-		}
-
-		try {
-			const testValue = "runbook_" + Math.random().toString(36).slice(2, 8);
-
-			// Set a variable
-			new Notice(`Setting TEST_VAR=${testValue}`);
-			await this.session.execute(`export TEST_VAR="${testValue}"`);
-
-			// Read it back
-			const output = await this.session.execute("echo $TEST_VAR");
-
-			if (output.trim() === testValue) {
-				new Notice(`✅ State persists!\nTEST_VAR=${output.trim()}`);
-				console.log("Runbook: State persistence test PASSED");
-			} else {
-				new Notice(`⚠️ State may not persist.\nExpected: ${testValue}\nGot: ${output.trim()}`);
-				console.log("Runbook: State persistence test PARTIAL", { expected: testValue, got: output });
-			}
-		} catch (err) {
-			new Notice(`❌ State check failed: ${err}`);
-			console.error("Runbook: State check failed", err);
 		}
 	}
 
@@ -196,10 +225,10 @@ export default class RunbookPlugin extends Plugin {
 		try {
 			const oldPid = this.session.pid;
 			this.session.restart();
-			new Notice(`✅ Shell restarted\nOld PID: ${oldPid}\nNew PID: ${this.session.pid}`);
+			new Notice(`Shell restarted\nOld PID: ${oldPid}\nNew PID: ${this.session.pid}`);
 			console.log("Runbook: Shell restarted", { oldPid, newPid: this.session.pid });
 		} catch (err) {
-			new Notice(`❌ Restart failed: ${err}`);
+			new Notice(`Restart failed: ${err}`);
 			console.error("Runbook: Restart failed", err);
 		}
 	}
