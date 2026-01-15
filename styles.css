@@ -1,0 +1,185 @@
+/* Runbook Plugin Styles */
+
+/* Code block wrapper */
+.runbook-code-wrapper {
+	position: relative;
+	margin-bottom: 1em;
+}
+
+/* Execute button container */
+.runbook-button-container {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 10;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+pre:hover .runbook-button-container,
+.runbook-button-container:focus-within {
+	opacity: 1;
+}
+
+/* Execute button */
+.runbook-execute-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	cursor: pointer;
+	transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.runbook-execute-btn:hover {
+	background: var(--interactive-accent-hover);
+	transform: scale(1.05);
+}
+
+.runbook-execute-btn:active {
+	transform: scale(0.95);
+}
+
+/* Loading state */
+.runbook-execute-btn-loading {
+	pointer-events: none;
+	opacity: 0.7;
+}
+
+.runbook-execute-btn-loading svg {
+	animation: runbook-spin 1s linear infinite;
+}
+
+@keyframes runbook-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Output container */
+.runbook-output-container {
+	margin-top: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-secondary);
+	overflow: hidden;
+}
+
+/* Output header */
+.runbook-output-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	background: var(--background-secondary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: 12px;
+}
+
+.runbook-output-status {
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.runbook-output-status-error {
+	color: var(--text-error);
+}
+
+.runbook-output-timestamp {
+	color: var(--text-muted);
+	margin-left: auto;
+}
+
+/* Output actions */
+.runbook-output-actions {
+	display: flex;
+	gap: 4px;
+	margin-left: 8px;
+}
+
+.runbook-output-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.runbook-output-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* Output content */
+.runbook-output-content {
+	padding: 10px;
+	max-height: 400px;
+	overflow: auto;
+}
+
+.runbook-output-content pre {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	font-size: 13px;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+}
+
+.runbook-output-error pre {
+	color: var(--text-error);
+}
+
+.runbook-output-empty {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* Spinner for loading state */
+.runbook-output-spinner {
+	display: flex;
+	justify-content: center;
+	padding: 20px;
+}
+
+.runbook-output-spinner svg {
+	animation: runbook-spin 1s linear infinite;
+	color: var(--text-muted);
+}
+
+/* Expand button */
+.runbook-output-expand {
+	display: block;
+	width: 100%;
+	margin-top: 8px;
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 12px;
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.runbook-output-expand:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}

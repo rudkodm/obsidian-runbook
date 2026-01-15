@@ -7,6 +7,7 @@ import {
 	advanceCursorToNextLine,
 	stripPromptPrefix,
 } from "./editor/code-block";
+import { createCodeBlockProcessor } from "./ui/code-block-processor";
 
 /**
  * Obsidian Runbook Plugin
@@ -79,6 +80,14 @@ export default class RunbookPlugin extends Plugin {
 		// Auto-start shell session
 		this.session.spawn();
 		console.log("Runbook: Shell auto-started", { pid: this.session.pid });
+
+		// Register code block post-processor for reading view
+		this.registerMarkdownPostProcessor(
+			createCodeBlockProcessor({
+				getSession: () => this.session,
+			})
+		);
+		console.log("Runbook: Code block processor registered");
 
 		new Notice(`Runbook: Ready (PID: ${this.session.pid})`);
 		console.log("Runbook: Plugin loaded successfully");
