@@ -1,4 +1,4 @@
-import { MarkdownPostProcessorContext, Notice } from "obsidian";
+import { MarkdownPostProcessorContext, Notice, setIcon } from "obsidian";
 import { ShellSession } from "../shell/session";
 import { isLanguageSupported, stripPromptPrefix } from "../editor/code-block";
 import { OutputContainer } from "./output-container";
@@ -80,22 +80,23 @@ function createExecuteButton(
 	options: CodeBlockProcessorOptions,
 	wrapper: HTMLElement
 ): HTMLElement {
-	// Create button container - positioned inside the pre element at top-left
+	// Create button container - positioned inside the pre element
 	const buttonContainer = document.createElement("div");
-	buttonContainer.className = "runbook-button-container";
+	buttonContainer.addClass("runbook-button-container");
 
-	// Create execute button - IntelliJ style green arrow
+	// Create execute button using Obsidian's icon system
 	const executeBtn = document.createElement("button");
-	executeBtn.className = "runbook-execute-btn";
+	executeBtn.addClass("runbook-execute-btn", "clickable-icon");
 	executeBtn.setAttribute("aria-label", "Execute code block");
-	// Use inline SVG with explicit dimensions
-	executeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="#4CAF50"><polygon points="6,4 20,12 6,20"/></svg>`;
+
+	// Use Obsidian's setIcon for the play icon
+	setIcon(executeBtn, "play");
 
 	buttonContainer.appendChild(executeBtn);
 
-	// Position button inside the pre element (top-left corner)
+	// Position button inside the pre element
 	preEl.style.position = "relative";
-	preEl.insertBefore(buttonContainer, preEl.firstChild);
+	preEl.appendChild(buttonContainer);
 
 	// Create output container (initially hidden)
 	const outputContainer = new OutputContainer(wrapper);

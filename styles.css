@@ -9,8 +9,8 @@
 /* Execute button container - top-right inside code block, next to copy button */
 .runbook-button-container {
 	position: absolute;
-	right: 40px;
-	top: 6px;
+	right: 36px;
+	top: 4px;
 	z-index: 10;
 	opacity: 0;
 	transition: opacity 0.15s ease;
@@ -21,38 +21,22 @@ pre:hover .runbook-button-container,
 	opacity: 1;
 }
 
-/* Execute button - IntelliJ green arrow style */
-.runbook-execute-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 22px;
-	height: 22px;
-	padding: 0;
-	margin: 0;
-	border: none !important;
-	border-radius: 4px;
-	background: rgba(76, 175, 80, 0.15) !important;
-	cursor: pointer;
-	transition: background-color 0.15s ease;
-	box-shadow: none !important;
+/* Execute button - uses Obsidian's clickable-icon as base */
+.runbook-execute-btn.clickable-icon {
+	--icon-size: 16px;
+	color: #4CAF50 !important;
+	padding: 4px;
 }
 
-.runbook-execute-btn:hover {
-	background: rgba(76, 175, 80, 0.3) !important;
-}
-
-.runbook-execute-btn:active {
-	background: rgba(76, 175, 80, 0.4) !important;
-}
-
-.runbook-execute-btn svg {
-	display: block;
+.runbook-execute-btn.clickable-icon:hover {
+	color: #66BB6A !important;
+	background-color: rgba(76, 175, 80, 0.15);
 }
 
 /* Loading state */
 .runbook-execute-btn-loading {
 	pointer-events: none;
+	opacity: 0.6;
 }
 
 .runbook-execute-btn-loading svg {
