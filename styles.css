@@ -6,29 +6,30 @@
 	margin-bottom: 1em;
 }
 
-/* Remove bottom border-radius from code block when output is shown */
+/* Ensure pre has position relative for absolute button positioning */
 .runbook-code-wrapper pre {
+	position: relative !important;
 	border-bottom-left-radius: 0 !important;
 	border-bottom-right-radius: 0 !important;
 	margin-bottom: 0 !important;
 }
 
-/* Execute button container - top-right inside code block, next to copy button */
+/* Execute button container - top-right inside pre, next to copy button */
 .runbook-button-container {
-	position: absolute;
-	right: 30px;
-	top: 5px;
-	z-index: 10;
+	position: absolute !important;
+	top: 5px !important;
+	right: 32px !important;
+	z-index: 100 !important;
 	opacity: 0;
 	transition: opacity 0.15s ease;
 }
 
-pre:hover .runbook-button-container,
-.runbook-button-container:focus-within {
+/* Show on pre hover */
+pre:hover .runbook-button-container {
 	opacity: 1;
 }
 
-/* Execute button - transparent, matches Obsidian's copy button */
+/* Execute button - transparent like Obsidian's copy button */
 .runbook-execute-btn.clickable-icon {
 	--icon-size: 18px;
 	color: var(--text-muted);
@@ -61,13 +62,13 @@ pre:hover .runbook-button-container,
 
 /* Output container - connected to code block above */
 .runbook-output-container {
-	position: relative;
+	position: relative !important;
 	margin-top: 0 !important;
 	border: 1px solid var(--background-modifier-border) !important;
 	border-top: 1px solid var(--background-modifier-border-hover) !important;
 	border-radius: 0 0 6px 6px !important;
 	background: var(--background-primary-alt) !important;
-	overflow: hidden !important;
+	overflow: visible !important;
 	font-family: var(--font-monospace) !important;
 }
 
@@ -99,14 +100,14 @@ pre:hover .runbook-button-container,
 	font-size: 10px !important;
 }
 
-/* Output action buttons - top right, absolutely positioned */
+/* Output action buttons - top right corner */
 .runbook-output-actions {
 	position: absolute !important;
 	top: 4px !important;
 	right: 8px !important;
 	display: flex !important;
 	gap: 2px !important;
-	margin-left: 0 !important;
+	z-index: 100 !important;
 	opacity: 0;
 	transition: opacity 0.15s ease;
 }
@@ -116,25 +117,19 @@ pre:hover .runbook-button-container,
 }
 
 /* Output buttons - transparent, match Obsidian style */
-.runbook-output-btn {
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-	width: 24px !important;
-	height: 24px !important;
-	padding: 0 !important;
-	border: none !important;
-	border-radius: 4px !important;
-	background: transparent !important;
+.runbook-output-btn.clickable-icon {
+	--icon-size: 16px;
 	color: var(--text-muted) !important;
+	background: transparent !important;
+	padding: 4px;
+	border-radius: 4px;
+	border: none !important;
 	cursor: pointer !important;
-	transition: background-color 0.15s ease, color 0.15s ease !important;
-	box-shadow: none !important;
 }
 
-.runbook-output-btn:hover {
-	background: var(--background-modifier-hover) !important;
+.runbook-output-btn.clickable-icon:hover {
 	color: var(--text-normal) !important;
+	background: var(--background-modifier-hover) !important;
 }
 
 /* Output content */
@@ -193,7 +188,6 @@ pre:hover .runbook-button-container,
 	font-size: 11px !important;
 	font-family: inherit !important;
 	cursor: pointer !important;
-	transition: background-color 0.15s ease, color 0.15s ease !important;
 }
 
 .runbook-output-expand:hover {

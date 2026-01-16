@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-runbook",
 	"name": "Runbook",
-	"version": "0.0.9",
+	"version": "0.0.10",
 	"minAppVersion": "1.0.0",
 	"description": "Execute code blocks directly from your notes using a persistent terminal session.",
 	"author": "rudkodm",
