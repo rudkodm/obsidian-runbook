@@ -80,21 +80,21 @@ function createExecuteButton(
 	options: CodeBlockProcessorOptions,
 	wrapper: HTMLElement
 ): HTMLElement {
-	// Create button container
+	// Create button container - positioned in the left gutter
 	const buttonContainer = document.createElement("div");
 	buttonContainer.className = "runbook-button-container";
 
-	// Create execute button
+	// Create execute button - IntelliJ style green arrow
 	const executeBtn = document.createElement("button");
 	executeBtn.className = "runbook-execute-btn";
 	executeBtn.setAttribute("aria-label", "Execute code block");
-	executeBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
+	executeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>`;
 
 	buttonContainer.appendChild(executeBtn);
 
-	// Position the button container
-	preEl.style.position = "relative";
-	preEl.appendChild(buttonContainer);
+	// Add button to wrapper (left gutter positioning via CSS)
+	wrapper.style.position = "relative";
+	wrapper.appendChild(buttonContainer);
 
 	// Create output container (initially hidden)
 	const outputContainer = new OutputContainer(wrapper);
