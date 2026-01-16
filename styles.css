@@ -6,11 +6,18 @@
 	margin-bottom: 1em;
 }
 
+/* Remove bottom border-radius from code block when output is shown */
+.runbook-code-wrapper pre {
+	border-bottom-left-radius: 0 !important;
+	border-bottom-right-radius: 0 !important;
+	margin-bottom: 0 !important;
+}
+
 /* Execute button container - top-right inside code block, next to copy button */
 .runbook-button-container {
 	position: absolute;
-	right: 36px;
-	top: 4px;
+	right: 30px;
+	top: 5px;
 	z-index: 10;
 	opacity: 0;
 	transition: opacity 0.15s ease;
@@ -21,16 +28,18 @@ pre:hover .runbook-button-container,
 	opacity: 1;
 }
 
-/* Execute button - uses Obsidian's clickable-icon as base */
+/* Execute button - transparent, matches Obsidian's copy button */
 .runbook-execute-btn.clickable-icon {
-	--icon-size: 16px;
-	color: #4CAF50 !important;
+	--icon-size: 18px;
+	color: var(--text-muted);
+	background: transparent !important;
 	padding: 4px;
+	border-radius: 4px;
 }
 
 .runbook-execute-btn.clickable-icon:hover {
-	color: #66BB6A !important;
-	background-color: rgba(76, 175, 80, 0.15);
+	color: var(--text-normal);
+	background: var(--background-modifier-hover) !important;
 }
 
 /* Loading state */
@@ -48,53 +57,65 @@ pre:hover .runbook-button-container,
 	to { transform: rotate(360deg); }
 }
 
-/* ==================== OUTPUT CONTAINER - TERMINAL STYLE ==================== */
+/* ==================== OUTPUT CONTAINER ==================== */
 
+/* Output container - connected to code block above */
 .runbook-output-container {
-	margin-top: 8px !important;
-	border-radius: 6px !important;
-	border: 1px solid #333 !important;
-	background: #0d1117 !important;
+	position: relative;
+	margin-top: 0 !important;
+	border: 1px solid var(--background-modifier-border) !important;
+	border-top: 1px solid var(--background-modifier-border-hover) !important;
+	border-radius: 0 0 6px 6px !important;
+	background: var(--background-primary-alt) !important;
 	overflow: hidden !important;
-	font-family: "JetBrains Mono", "Fira Code", "SF Mono", Monaco, Menlo, Consolas, monospace !important;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+	font-family: var(--font-monospace) !important;
 }
 
-/* Output header - Terminal title bar */
+/* Output header - minimal, just status info on left */
 .runbook-output-header {
 	display: flex !important;
 	align-items: center !important;
 	gap: 8px !important;
-	padding: 8px 12px !important;
-	background: #161b22 !important;
-	border-bottom: 1px solid #30363d !important;
+	padding: 6px 12px !important;
+	background: transparent !important;
+	border-bottom: none !important;
 	font-size: 11px !important;
 }
 
 .runbook-output-status {
-	font-weight: 600 !important;
-	color: #3fb950 !important;
+	font-weight: 500 !important;
+	color: var(--text-muted) !important;
 	text-transform: uppercase !important;
 	letter-spacing: 0.5px !important;
-}
-
-.runbook-output-status-error {
-	color: #f85149 !important;
-}
-
-.runbook-output-timestamp {
-	color: #8b949e !important;
-	margin-left: auto !important;
 	font-size: 10px !important;
 }
 
-/* Output action buttons */
-.runbook-output-actions {
-	display: flex !important;
-	gap: 4px !important;
-	margin-left: 8px !important;
+.runbook-output-status-error {
+	color: var(--text-error) !important;
 }
 
+.runbook-output-timestamp {
+	color: var(--text-faint) !important;
+	font-size: 10px !important;
+}
+
+/* Output action buttons - top right, absolutely positioned */
+.runbook-output-actions {
+	position: absolute !important;
+	top: 4px !important;
+	right: 8px !important;
+	display: flex !important;
+	gap: 2px !important;
+	margin-left: 0 !important;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.runbook-output-container:hover .runbook-output-actions {
+	opacity: 1;
+}
+
+/* Output buttons - transparent, match Obsidian style */
 .runbook-output-btn {
 	display: flex !important;
 	align-items: center !important;
@@ -105,23 +126,23 @@ pre:hover .runbook-button-container,
 	border: none !important;
 	border-radius: 4px !important;
 	background: transparent !important;
-	color: #8b949e !important;
+	color: var(--text-muted) !important;
 	cursor: pointer !important;
 	transition: background-color 0.15s ease, color 0.15s ease !important;
 	box-shadow: none !important;
 }
 
 .runbook-output-btn:hover {
-	background: rgba(255, 255, 255, 0.1) !important;
-	color: #c9d1d9 !important;
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-normal) !important;
 }
 
-/* Output content - Terminal body */
+/* Output content */
 .runbook-output-content {
-	padding: 12px 14px !important;
+	padding: 8px 12px 12px 12px !important;
 	max-height: 400px !important;
 	overflow: auto !important;
-	background: #0d1117 !important;
+	background: transparent !important;
 }
 
 .runbook-output-content pre {
@@ -130,19 +151,19 @@ pre:hover .runbook-button-container,
 	background: transparent !important;
 	border: none !important;
 	font-size: 13px !important;
-	line-height: 1.6 !important;
+	line-height: 1.5 !important;
 	white-space: pre-wrap !important;
 	word-wrap: break-word !important;
-	color: #c9d1d9 !important;
+	color: var(--text-normal) !important;
 	font-family: inherit !important;
 }
 
 .runbook-output-error pre {
-	color: #f85149 !important;
+	color: var(--text-error) !important;
 }
 
 .runbook-output-empty {
-	color: #6e7681 !important;
+	color: var(--text-faint) !important;
 	font-style: italic !important;
 	font-size: 12px !important;
 }
@@ -151,24 +172,24 @@ pre:hover .runbook-button-container,
 .runbook-output-spinner {
 	display: flex !important;
 	justify-content: center !important;
-	padding: 20px !important;
+	padding: 16px !important;
 }
 
 .runbook-output-spinner svg {
 	animation: runbook-spin 1s linear infinite;
-	color: #3fb950 !important;
+	color: var(--text-muted) !important;
 }
 
 /* Expand button */
 .runbook-output-expand {
 	display: block !important;
-	width: 100% !important;
-	margin-top: 8px !important;
-	padding: 6px 12px !important;
-	border: 1px solid #30363d !important;
+	width: calc(100% - 16px) !important;
+	margin: 4px 8px 8px 8px !important;
+	padding: 4px 12px !important;
+	border: 1px solid var(--background-modifier-border) !important;
 	border-radius: 4px !important;
-	background: #21262d !important;
-	color: #8b949e !important;
+	background: transparent !important;
+	color: var(--text-muted) !important;
 	font-size: 11px !important;
 	font-family: inherit !important;
 	cursor: pointer !important;
@@ -176,8 +197,8 @@ pre:hover .runbook-button-container,
 }
 
 .runbook-output-expand:hover {
-	background: #30363d !important;
-	color: #c9d1d9 !important;
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-normal) !important;
 }
 
 /* Custom scrollbar */
@@ -187,14 +208,14 @@ pre:hover .runbook-button-container,
 }
 
 .runbook-output-content::-webkit-scrollbar-track {
-	background: #0d1117;
+	background: transparent;
 }
 
 .runbook-output-content::-webkit-scrollbar-thumb {
-	background: #30363d;
+	background: var(--background-modifier-border);
 	border-radius: 4px;
 }
 
 .runbook-output-content::-webkit-scrollbar-thumb:hover {
-	background: #484f58;
+	background: var(--background-modifier-border-hover);
 }

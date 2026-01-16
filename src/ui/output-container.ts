@@ -241,19 +241,19 @@ export class OutputContainer {
 			this.createSpan(this.headerEl, "runbook-output-timestamp", timeStr);
 		}
 
-		// Action buttons container
-		const actionsEl = this.createDiv(this.headerEl, "runbook-output-actions");
+		// Action buttons container - add to main container for absolute positioning
+		const actionsEl = this.createDiv(this.containerEl, "runbook-output-actions");
 
 		// Copy button
-		const copyBtn = this.createElement(actionsEl, "button", "runbook-output-btn");
+		const copyBtn = this.createElement(actionsEl, "button", "runbook-output-btn clickable-icon");
 		copyBtn.setAttribute("aria-label", "Copy output");
-		copyBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+		copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
 		copyBtn.addEventListener("click", () => this.copyOutput());
 
 		// Clear button
-		const clearBtn = this.createElement(actionsEl, "button", "runbook-output-btn");
+		const clearBtn = this.createElement(actionsEl, "button", "runbook-output-btn clickable-icon");
 		clearBtn.setAttribute("aria-label", "Clear output");
-		clearBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+		clearBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 		clearBtn.addEventListener("click", () => this.clear());
 	}
 
