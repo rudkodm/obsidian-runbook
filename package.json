@@ -1,0 +1,28 @@
+{
+	"name": "obsidian-runbook",
+	"version": "0.0.11",
+	"description": "Execute code blocks directly from your notes using a persistent terminal session.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"install-plugin": "./scripts/install.sh",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"keywords": [
+		"obsidian",
+		"plugin",
+		"terminal",
+		"runbook",
+		"devops"
+	],
+	"devDependencies": {
+		"@types/node": "^20.10.0",
+		"esbuild": "^0.19.0",
+		"jsdom": "^27.4.0",
+		"obsidian": "latest",
+		"typescript": "^5.3.0",
+		"vitest": "^1.0.0"
+	}
+}
