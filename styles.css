@@ -11,24 +11,59 @@
 	background: var(--background-secondary);
 }
 
-/* ==================== CELL TOOLBAR ==================== */
+/* ==================== RUN BUTTON (inside pre, next to native copy) ==================== */
 
-.rb-cell-toolbar {
+/* Match native copy button styling from Obsidian */
+.rb-run-button.clickable-icon {
 	position: absolute;
-	top: 8px;
-	right: 8px;
+	top: 0;
+	/* Native copy is at right:0, our button goes to its left */
+	/* Native: right:0 + margin:6px + width ~32px = occupies right 6-44px */
+	right: 36px;
+	margin: 6px;
+	padding: 6px 8px;
+	height: auto;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	border: 0;
+	border-radius: var(--button-radius);
+	cursor: pointer;
+	display: none;
+	z-index: 1;
+}
+
+.rb-run-button.clickable-icon:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+/* Show on pre hover (matching native copy button behavior) */
+.rb-cell-code pre:hover .rb-run-button.clickable-icon {
 	display: flex;
-	gap: 4px;
-	opacity: 0;
-	transition: opacity 120ms ease;
-	z-index: 10;
+	align-items: center;
+	justify-content: center;
 }
 
-.rb-cell:hover .rb-cell-toolbar {
-	opacity: 1;
+/* Running state */
+.rb-run-button.is-running {
+	color: var(--text-accent);
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
 }
 
-/* Toolbar buttons */
+.rb-run-button.is-running svg {
+	animation: rb-spin 1s linear infinite;
+}
+
+@keyframes rb-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* Output area buttons - keep consistent styling */
 .rb-cell-btn.clickable-icon {
 	--icon-size: 16px;
 	color: var(--text-muted);
@@ -44,20 +79,6 @@
 	background: var(--background-modifier-hover);
 }
 
-/* Running state for run button */
-.rb-cell-btn.is-running {
-	color: var(--text-accent);
-}
-
-.rb-cell-btn.is-running svg {
-	animation: rb-spin 1s linear infinite;
-}
-
-@keyframes rb-spin {
-	from { transform: rotate(0deg); }
-	to { transform: rotate(360deg); }
-}
-
 /* ==================== CODE AREA ==================== */
 
 .rb-cell-code {
@@ -67,6 +88,7 @@
 
 /* Reset pre styling inside cell */
 .rb-cell-code pre {
+	position: relative;
 	margin: 0 !important;
 	padding: 14px 12px !important;
 	background: transparent !important;

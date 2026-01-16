@@ -74,27 +74,15 @@ function createCell(
 	cell.className = "rb-cell";
 	cell.setAttribute("data-rb-cell-id", cellId);
 
-	// Create toolbar (top-right)
-	const toolbar = document.createElement("div");
-	toolbar.className = "rb-cell-toolbar";
-
-	// Run button
-	const runBtn = document.createElement("button");
-	runBtn.className = "rb-cell-btn clickable-icon";
-	runBtn.setAttribute("aria-label", "Run code");
-	setIcon(runBtn, "play");
-	toolbar.appendChild(runBtn);
-
-	// Copy code button
-	const copyCodeBtn = document.createElement("button");
-	copyCodeBtn.className = "rb-cell-btn clickable-icon";
-	copyCodeBtn.setAttribute("aria-label", "Copy code");
-	setIcon(copyCodeBtn, "copy");
-	toolbar.appendChild(copyCodeBtn);
-
 	// Create code area
 	const codeArea = document.createElement("div");
 	codeArea.className = "rb-cell-code";
+
+	// Run button - will be added inside <pre> element (next to native copy button)
+	const runBtn = document.createElement("button");
+	runBtn.className = "rb-run-button clickable-icon";
+	runBtn.setAttribute("aria-label", "Run code");
+	setIcon(runBtn, "play");
 
 	// Create output area
 	const outputArea = document.createElement("div");
@@ -134,13 +122,15 @@ function createCell(
 	outputArea.appendChild(outputBody);
 
 	// Assemble cell
-	cell.appendChild(toolbar);
 	cell.appendChild(codeArea);
 	cell.appendChild(outputArea);
 
 	// Move the original pre/code into our code area
 	preEl.parentNode?.insertBefore(cell, preEl);
 	codeArea.appendChild(preEl);
+
+	// Add run button inside pre element (positioned next to native copy button via CSS)
+	preEl.appendChild(runBtn);
 
 	// Cell state
 	const state: CellState = {
@@ -154,14 +144,6 @@ function createCell(
 		e.preventDefault();
 		e.stopPropagation();
 		await executeCell(codeEl, options, state, outputArea, outputBody, outputTitle, runBtn);
-	});
-
-	copyCodeBtn.addEventListener("click", (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		const code = codeEl.textContent || "";
-		navigator.clipboard.writeText(code);
-		new Notice("Code copied to clipboard");
 	});
 
 	copyOutputBtn.addEventListener("click", (e) => {
