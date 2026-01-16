@@ -1,215 +1,181 @@
-/* Runbook Plugin Styles */
+/* Runbook Plugin - Notebook Cell Styles */
 
-/* Code block wrapper */
-.runbook-code-wrapper {
+/* ==================== CELL CONTAINER ==================== */
+
+.rb-cell {
 	position: relative;
-	margin-bottom: 1em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+	margin: 12px 0;
+	background: var(--background-secondary);
 }
 
-/* Ensure pre has position relative for absolute button positioning */
-.runbook-code-wrapper pre {
-	position: relative !important;
-	border-bottom-left-radius: 0 !important;
-	border-bottom-right-radius: 0 !important;
-	margin-bottom: 0 !important;
-}
+/* ==================== CELL TOOLBAR ==================== */
 
-/* Execute button container - top-right inside pre, next to copy button */
-.runbook-button-container {
-	position: absolute !important;
-	top: 5px !important;
-	right: 32px !important;
-	z-index: 100 !important;
+.rb-cell-toolbar {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	display: flex;
+	gap: 4px;
 	opacity: 0;
-	transition: opacity 0.15s ease;
+	transition: opacity 120ms ease;
+	z-index: 10;
 }
 
-/* Show on pre hover */
-pre:hover .runbook-button-container {
+.rb-cell:hover .rb-cell-toolbar {
 	opacity: 1;
 }
 
-/* Execute button - transparent like Obsidian's copy button */
-.runbook-execute-btn.clickable-icon {
-	--icon-size: 18px;
+/* Toolbar buttons */
+.rb-cell-btn.clickable-icon {
+	--icon-size: 16px;
 	color: var(--text-muted);
-	background: transparent !important;
+	background: transparent;
 	padding: 4px;
 	border-radius: 4px;
+	border: none;
+	cursor: pointer;
 }
 
-.runbook-execute-btn.clickable-icon:hover {
+.rb-cell-btn.clickable-icon:hover {
 	color: var(--text-normal);
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 }
 
-/* Loading state */
-.runbook-execute-btn-loading {
-	pointer-events: none;
-	opacity: 0.6;
+/* Running state for run button */
+.rb-cell-btn.is-running {
+	color: var(--text-accent);
 }
 
-.runbook-execute-btn-loading svg {
-	animation: runbook-spin 1s linear infinite;
+.rb-cell-btn.is-running svg {
+	animation: rb-spin 1s linear infinite;
 }
 
-@keyframes runbook-spin {
+@keyframes rb-spin {
 	from { transform: rotate(0deg); }
 	to { transform: rotate(360deg); }
 }
 
-/* ==================== OUTPUT CONTAINER ==================== */
+/* ==================== CODE AREA ==================== */
 
-/* Output container - connected to code block above */
-.runbook-output-container {
-	position: relative !important;
-	margin-top: 0 !important;
-	border: 1px solid var(--background-modifier-border) !important;
-	border-top: 1px solid var(--background-modifier-border-hover) !important;
-	border-radius: 0 0 6px 6px !important;
-	background: var(--background-primary-alt) !important;
-	overflow: visible !important;
-	font-family: var(--font-monospace) !important;
+.rb-cell-code {
+	background: var(--background-secondary-alt);
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-/* Output header - minimal, just status info on left */
-.runbook-output-header {
-	display: flex !important;
-	align-items: center !important;
-	gap: 8px !important;
-	padding: 6px 12px !important;
+/* Reset pre styling inside cell */
+.rb-cell-code pre {
+	margin: 0 !important;
+	padding: 14px 12px !important;
 	background: transparent !important;
-	border-bottom: none !important;
-	font-size: 11px !important;
+	border: none !important;
+	border-radius: 0 !important;
 }
 
-.runbook-output-status {
-	font-weight: 500 !important;
-	color: var(--text-muted) !important;
-	text-transform: uppercase !important;
-	letter-spacing: 0.5px !important;
-	font-size: 10px !important;
+.rb-cell-code pre code {
+	background: transparent !important;
 }
 
-.runbook-output-status-error {
-	color: var(--text-error) !important;
+/* ==================== OUTPUT AREA ==================== */
+
+.rb-cell-output {
+	position: relative;
+	background: var(--background-secondary);
+	padding: 10px 12px;
+	min-height: 40px;
 }
 
-.runbook-output-timestamp {
-	color: var(--text-faint) !important;
-	font-size: 10px !important;
+/* Empty state - more subtle */
+.rb-cell-output.is-empty {
+	opacity: 0.5;
 }
 
-/* Output action buttons - top right corner */
-.runbook-output-actions {
-	position: absolute !important;
-	top: 4px !important;
-	right: 8px !important;
-	display: flex !important;
-	gap: 2px !important;
-	z-index: 100 !important;
+.rb-cell-output.is-empty .rb-cell-output-body {
+	display: none;
+}
+
+/* Error state */
+.rb-cell-output.has-error .rb-cell-output-title {
+	color: var(--text-error);
+}
+
+/* Output header */
+.rb-cell-output-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.rb-cell-output-title {
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+/* Output action buttons */
+.rb-cell-output-actions {
+	display: flex;
+	gap: 2px;
 	opacity: 0;
-	transition: opacity 0.15s ease;
+	transition: opacity 120ms ease;
 }
 
-.runbook-output-container:hover .runbook-output-actions {
+.rb-cell-output:hover .rb-cell-output-actions {
 	opacity: 1;
 }
 
-/* Output buttons - transparent, match Obsidian style */
-.runbook-output-btn.clickable-icon {
-	--icon-size: 16px;
-	color: var(--text-muted) !important;
-	background: transparent !important;
-	padding: 4px;
-	border-radius: 4px;
-	border: none !important;
-	cursor: pointer !important;
+/* Output body */
+.rb-cell-output-body {
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	line-height: 1.5;
 }
 
-.runbook-output-btn.clickable-icon:hover {
-	color: var(--text-normal) !important;
-	background: var(--background-modifier-hover) !important;
-}
-
-/* Output content */
-.runbook-output-content {
-	padding: 8px 12px 12px 12px !important;
-	max-height: 400px !important;
-	overflow: auto !important;
-	background: transparent !important;
-}
-
-.runbook-output-content pre {
+.rb-cell-output-body pre {
 	margin: 0 !important;
 	padding: 0 !important;
 	background: transparent !important;
 	border: none !important;
-	font-size: 13px !important;
-	line-height: 1.5 !important;
-	white-space: pre-wrap !important;
-	word-wrap: break-word !important;
-	color: var(--text-normal) !important;
-	font-family: inherit !important;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
 }
 
-.runbook-output-error pre {
-	color: var(--text-error) !important;
+/* Error output */
+.rb-cell-output-body pre.rb-cell-error {
+	color: var(--text-error);
 }
 
-.runbook-output-empty {
-	color: var(--text-faint) !important;
-	font-style: italic !important;
-	font-size: 12px !important;
+/* Empty output message */
+.rb-cell-output-empty {
+	color: var(--text-faint);
+	font-style: italic;
+	font-size: 12px;
 }
 
-/* Spinner */
-.runbook-output-spinner {
-	display: flex !important;
-	justify-content: center !important;
-	padding: 16px !important;
+/* ==================== SPINNER ==================== */
+
+.rb-cell-spinner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 12px;
 }
 
-.runbook-output-spinner svg {
-	animation: runbook-spin 1s linear infinite;
-	color: var(--text-muted) !important;
-}
-
-/* Expand button */
-.runbook-output-expand {
-	display: block !important;
-	width: calc(100% - 16px) !important;
-	margin: 4px 8px 8px 8px !important;
-	padding: 4px 12px !important;
-	border: 1px solid var(--background-modifier-border) !important;
-	border-radius: 4px !important;
-	background: transparent !important;
-	color: var(--text-muted) !important;
-	font-size: 11px !important;
-	font-family: inherit !important;
-	cursor: pointer !important;
-}
-
-.runbook-output-expand:hover {
-	background: var(--background-modifier-hover) !important;
-	color: var(--text-normal) !important;
-}
-
-/* Custom scrollbar */
-.runbook-output-content::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
-}
-
-.runbook-output-content::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-.runbook-output-content::-webkit-scrollbar-thumb {
-	background: var(--background-modifier-border);
-	border-radius: 4px;
-}
-
-.runbook-output-content::-webkit-scrollbar-thumb:hover {
-	background: var(--background-modifier-border-hover);
+.rb-cell-spinner::after {
+	content: "";
+	width: 20px;
+	height: 20px;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--text-accent);
+	border-radius: 50%;
+	animation: rb-spin 0.8s linear infinite;
 }
