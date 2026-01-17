@@ -1,20 +1,19 @@
 import { MarkdownPostProcessorContext, Notice, setIcon } from "obsidian";
-import { ShellSession } from "../shell/session";
 import { isLanguageSupported, stripPromptPrefix } from "../editor/code-block";
 import { TerminalView } from "../terminal/terminal-view";
 
 /**
  * Code Block Processor
- * Creates notebook-style cells with code and output areas
+ * Adds a run button to code blocks that executes in the terminal
  */
 
 export interface CodeBlockProcessorOptions {
-	getSession: () => ShellSession | null;
-	getTerminalView?: () => TerminalView | null;
+	getTerminalView: () => TerminalView | null;
+	createTerminal: () => Promise<void>;
 }
 
 /**
- * Creates a Markdown post-processor that creates notebook-style cells
+ * Creates a Markdown post-processor that adds run buttons to code blocks
  */
 export function createCodeBlockProcessor(options: CodeBlockProcessorOptions) {
 	return (el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
@@ -29,12 +28,8 @@ export function createCodeBlockProcessor(options: CodeBlockProcessorOptions) {
 				return;
 			}
 
-			// Generate a cell ID for state management
-			const sectionInfo = ctx.getSectionInfo(el);
-			const cellId = `${ctx.sourcePath}:${sectionInfo?.lineStart ?? 0}`;
-
-			// Create the cell structure
-			createCell(preEl, codeEl as HTMLElement, language, cellId, options);
+			// Add run button to the code block
+			addRunButton(preEl, codeEl as HTMLElement, language, options);
 		});
 	};
 }
@@ -53,326 +48,70 @@ function extractLanguage(codeEl: Element): string | null {
 }
 
 /**
- * Cell state for managing execution
+ * Add a run button to a code block
  */
-interface CellState {
-	status: "idle" | "running" | "error" | "done";
-	outputText: string;
-	timestamp: Date | null;
-}
-
-/**
- * Create a notebook-style cell
- */
-function createCell(
+function addRunButton(
 	preEl: HTMLElement,
 	codeEl: HTMLElement,
 	language: string,
-	cellId: string,
 	options: CodeBlockProcessorOptions
 ): void {
-	// Create cell wrapper
-	const cell = document.createElement("div");
-	cell.className = "rb-cell";
-	cell.setAttribute("data-rb-cell-id", cellId);
-
-	// Create code area
-	const codeArea = document.createElement("div");
-	codeArea.className = "rb-cell-code";
-
 	// Run button - will be added inside <pre> element (next to native copy button)
 	const runBtn = document.createElement("button");
 	runBtn.className = "rb-run-button clickable-icon";
-	runBtn.setAttribute("aria-label", "Run code");
+	runBtn.setAttribute("aria-label", "Run code in terminal");
 	setIcon(runBtn, "play");
 
-	// Create output area
-	const outputArea = document.createElement("div");
-	outputArea.className = "rb-cell-output is-empty";
-
-	const outputHeader = document.createElement("div");
-	outputHeader.className = "rb-cell-output-header";
-
-	const outputTitle = document.createElement("div");
-	outputTitle.className = "rb-cell-output-title";
-	outputTitle.textContent = "Output";
-
-	const outputActions = document.createElement("div");
-	outputActions.className = "rb-cell-output-actions";
-
-	// Copy output button
-	const copyOutputBtn = document.createElement("button");
-	copyOutputBtn.className = "rb-cell-btn clickable-icon";
-	copyOutputBtn.setAttribute("aria-label", "Copy output");
-	setIcon(copyOutputBtn, "copy");
-	outputActions.appendChild(copyOutputBtn);
-
-	// Clear output button
-	const clearOutputBtn = document.createElement("button");
-	clearOutputBtn.className = "rb-cell-btn clickable-icon";
-	clearOutputBtn.setAttribute("aria-label", "Clear output");
-	setIcon(clearOutputBtn, "x");
-	outputActions.appendChild(clearOutputBtn);
-
-	outputHeader.appendChild(outputTitle);
-	outputHeader.appendChild(outputActions);
-
-	const outputBody = document.createElement("div");
-	outputBody.className = "rb-cell-output-body";
-
-	outputArea.appendChild(outputHeader);
-	outputArea.appendChild(outputBody);
-
-	// Assemble cell
-	cell.appendChild(codeArea);
-	cell.appendChild(outputArea);
-
-	// Move the original pre/code into our code area
-	preEl.parentNode?.insertBefore(cell, preEl);
-	codeArea.appendChild(preEl);
-
-	// Add run button inside pre element (positioned next to native copy button via CSS)
+	// Add run button inside pre element
 	preEl.appendChild(runBtn);
 
-	// Cell state
-	const state: CellState = {
-		status: "idle",
-		outputText: "",
-		timestamp: null,
-	};
+	let isRunning = false;
 
-	// Event handlers
+	// Click handler - execute in terminal
 	runBtn.addEventListener("click", async (e) => {
 		e.preventDefault();
 		e.stopPropagation();
-		await executeCell(codeEl, language, options, state, outputArea, outputBody, outputTitle, runBtn);
-	});
 
-	copyOutputBtn.addEventListener("click", (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		if (state.outputText) {
-			navigator.clipboard.writeText(state.outputText);
-			new Notice("Output copied to clipboard");
-		}
-	});
+		if (isRunning) return;
 
-	clearOutputBtn.addEventListener("click", (e) => {
-		e.preventDefault();
-		e.stopPropagation();
-		state.status = "idle";
-		state.outputText = "";
-		state.timestamp = null;
-		outputBody.innerHTML = "";
-		outputArea.classList.add("is-empty");
-		outputArea.classList.remove("has-error");
-		outputTitle.textContent = "Output";
-	});
-}
-
-/**
- * Execute the cell's code
- */
-async function executeCell(
-	codeEl: HTMLElement,
-	language: string,
-	options: CodeBlockProcessorOptions,
-	state: CellState,
-	outputArea: HTMLElement,
-	outputBody: HTMLElement,
-	outputTitle: HTMLElement,
-	runBtn: HTMLElement
-): Promise<void> {
-	const terminalView = options.getTerminalView?.();
-
-	// If terminal view exists, use it for execution
-	if (terminalView) {
-		await executeCellViaTerminal(
-			codeEl,
-			language,
-			terminalView,
-			state,
-			outputArea,
-			outputBody,
-			outputTitle,
-			runBtn
-		);
-		return;
-	}
-
-	// Fallback to direct session execution
-	const session = options.getSession();
-
-	if (!session) {
-		new Notice("Session not initialized");
-		return;
-	}
-
-	if (!session.isAlive) {
-		new Notice("Shell not running. Restarting...");
-		try {
-			session.spawn();
-		} catch (err) {
-			new Notice(`Failed to start shell: ${err}`);
+		const code = codeEl.textContent || "";
+		if (!code.trim()) {
+			new Notice("Code block is empty");
 			return;
 		}
-	}
 
-	const code = codeEl.textContent || "";
-	if (!code.trim()) {
-		new Notice("Code block is empty");
-		return;
-	}
+		isRunning = true;
+		runBtn.classList.add("is-running");
 
-	const lines = code.split("\n").filter((line) => line.trim().length > 0);
-
-	// Update state to running
-	state.status = "running";
-	outputArea.classList.remove("is-empty", "has-error");
-	outputBody.innerHTML = '<div class="rb-cell-spinner"></div>';
-	outputTitle.textContent = "Running...";
-	runBtn.classList.add("is-running");
-
-	try {
-		const outputs: string[] = [];
-
-		for (const line of lines) {
-			const command = stripPromptPrefix(line.trim());
-			if (!command) continue;
-
-			console.log("Runbook: Executing:", command);
-			const output = await session.execute(command);
-			if (output.trim()) {
-				outputs.push(output);
+		try {
+			// Get or create terminal
+			let terminalView = options.getTerminalView();
+			if (!terminalView) {
+				await options.createTerminal();
+				// Wait for terminal to be ready
+				await new Promise(resolve => setTimeout(resolve, 200));
+				terminalView = options.getTerminalView();
 			}
-		}
 
-		state.status = "done";
-		state.outputText = outputs.join("\n");
-		state.timestamp = new Date();
-
-		// Render output
-		outputBody.innerHTML = "";
-		if (state.outputText.trim()) {
-			const pre = document.createElement("pre");
-			pre.textContent = state.outputText;
-			outputBody.appendChild(pre);
-		} else {
-			const empty = document.createElement("div");
-			empty.className = "rb-cell-output-empty";
-			empty.textContent = "(no output)";
-			outputBody.appendChild(empty);
-		}
-
-		// Update title with timestamp
-		const timeStr = state.timestamp.toLocaleTimeString(undefined, {
-			hour: "2-digit",
-			minute: "2-digit",
-			second: "2-digit",
-		});
-		outputTitle.textContent = `Output • ${timeStr}`;
-
-	} catch (err) {
-		state.status = "error";
-		state.outputText = err instanceof Error ? err.message : String(err);
-		state.timestamp = new Date();
-
-		outputArea.classList.add("has-error");
-		outputBody.innerHTML = "";
-		const pre = document.createElement("pre");
-		pre.className = "rb-cell-error";
-		pre.textContent = state.outputText;
-		outputBody.appendChild(pre);
-
-		outputTitle.textContent = "Error";
-		console.error("Runbook: Execution failed", err);
-	} finally {
-		runBtn.classList.remove("is-running");
-	}
-}
-
-/**
- * Execute cell via terminal view
- */
-async function executeCellViaTerminal(
-	codeEl: HTMLElement,
-	language: string,
-	terminalView: TerminalView,
-	state: CellState,
-	outputArea: HTMLElement,
-	outputBody: HTMLElement,
-	outputTitle: HTMLElement,
-	runBtn: HTMLElement
-): Promise<void> {
-	const code = codeEl.textContent || "";
-	if (!code.trim()) {
-		new Notice("Code block is empty");
-		return;
-	}
-
-	const lines = code.split("\n").filter((line) => line.trim().length > 0);
-
-	// Update state to running
-	state.status = "running";
-	outputArea.classList.remove("is-empty", "has-error");
-	outputBody.innerHTML = '<div class="rb-cell-spinner"></div>';
-	outputTitle.textContent = "Running...";
-	runBtn.classList.add("is-running");
-
-	try {
-		const outputs: string[] = [];
-
-		for (const line of lines) {
-			const command = stripPromptPrefix(line.trim());
-			if (!command) continue;
-
-			// Execute via terminal view (which logs to terminal panel)
-			const output = await terminalView.executeFromCodeBlock(command, language);
-			if (output.trim()) {
-				outputs.push(output);
+			if (!terminalView) {
+				new Notice("Failed to create terminal");
+				return;
 			}
+
+			// Execute each line in terminal
+			const lines = code.split("\n").filter((line) => line.trim().length > 0);
+			for (const line of lines) {
+				const command = stripPromptPrefix(line.trim());
+				if (!command) continue;
+
+				await terminalView.executeFromCodeBlock(command, language);
+			}
+		} catch (err) {
+			new Notice(`Execution failed: ${err}`);
+			console.error("Runbook: Execution failed", err);
+		} finally {
+			isRunning = false;
+			runBtn.classList.remove("is-running");
 		}
-
-		state.status = "done";
-		state.outputText = outputs.join("\n");
-		state.timestamp = new Date();
-
-		// Render output
-		outputBody.innerHTML = "";
-		if (state.outputText.trim()) {
-			const pre = document.createElement("pre");
-			pre.textContent = state.outputText;
-			outputBody.appendChild(pre);
-		} else {
-			const empty = document.createElement("div");
-			empty.className = "rb-cell-output-empty";
-			empty.textContent = "(no output)";
-			outputBody.appendChild(empty);
-		}
-
-		// Update title with timestamp
-		const timeStr = state.timestamp.toLocaleTimeString(undefined, {
-			hour: "2-digit",
-			minute: "2-digit",
-			second: "2-digit",
-		});
-		outputTitle.textContent = `Output • ${timeStr}`;
-
-	} catch (err) {
-		state.status = "error";
-		state.outputText = err instanceof Error ? err.message : String(err);
-		state.timestamp = new Date();
-
-		outputArea.classList.add("has-error");
-		outputBody.innerHTML = "";
-		const pre = document.createElement("pre");
-		pre.className = "rb-cell-error";
-		pre.textContent = state.outputText;
-		outputBody.appendChild(pre);
-
-		outputTitle.textContent = "Error";
-		console.error("Runbook: Execution failed", err);
-	} finally {
-		runBtn.classList.remove("is-running");
-	}
+	});
 }

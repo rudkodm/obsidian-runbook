@@ -59,15 +59,20 @@ export const TERMINAL_STYLES = `
 
 .runbook-terminal-input {
 	flex: 1;
-	background: transparent;
-	border: none;
-	outline: none;
+	background: transparent !important;
+	background-color: transparent !important;
+	border: none !important;
+	border-radius: 0 !important;
+	outline: none !important;
+	box-shadow: none !important;
 	color: var(--text-normal);
 	font-family: var(--font-monospace);
 	font-size: inherit;
-	padding: 0;
+	padding: 0 !important;
 	margin: 0;
 	line-height: inherit;
+	-webkit-appearance: none;
+	appearance: none;
 }
 
 .runbook-terminal-input::placeholder {
