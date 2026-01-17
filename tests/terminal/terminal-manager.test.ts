@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { TerminalManager, TerminalTab } from "../../src/terminal/terminal-manager";
+import { TerminalManager } from "../../src/terminal/terminal-manager";
 
 describe("TerminalManager", () => {
 	let manager: TerminalManager;
@@ -12,247 +12,199 @@ describe("TerminalManager", () => {
 		manager.destroy();
 	});
 
-	describe("createTab", () => {
-		it("should create a new terminal tab", () => {
-			const tab = manager.createTab();
+	describe("createSession", () => {
+		it("should create a new session", () => {
+			const { id, name, session } = manager.createSession();
 
-			expect(tab).toBeDefined();
-			expect(tab.id).toBe("terminal-1");
-			expect(tab.name).toBe("Terminal 1");
-			expect(tab.session).toBeDefined();
-			expect(tab.history).toEqual([]);
+			expect(id).toBe("terminal-1");
+			expect(name).toBe("Terminal 1");
+			expect(session).toBeDefined();
 		});
 
-		it("should auto-increment tab IDs", () => {
-			const tab1 = manager.createTab();
-			const tab2 = manager.createTab();
-			const tab3 = manager.createTab();
+		it("should auto-increment session IDs", () => {
+			const session1 = manager.createSession();
+			const session2 = manager.createSession();
+			const session3 = manager.createSession();
 
-			expect(tab1.id).toBe("terminal-1");
-			expect(tab2.id).toBe("terminal-2");
-			expect(tab3.id).toBe("terminal-3");
+			expect(session1.id).toBe("terminal-1");
+			expect(session2.id).toBe("terminal-2");
+			expect(session3.id).toBe("terminal-3");
 		});
 
-		it("should allow custom names", () => {
-			const tab = manager.createTab("My Custom Terminal");
+		it("should auto-activate first session", () => {
+			const { id } = manager.createSession();
 
-			expect(tab.name).toBe("My Custom Terminal");
+			expect(manager.activeSessionId).toBe(id);
+			expect(manager.activeSession).toBeDefined();
 		});
 
-		it("should auto-activate first tab", () => {
-			const tab = manager.createTab();
-
-			expect(manager.activeTabId).toBe(tab.id);
-			expect(manager.activeTab).toBe(tab);
-		});
-
-		it("should emit tabCreated event", () => {
+		it("should emit sessionCreated event", () => {
 			const listener = vi.fn();
-			manager.on("tabCreated", listener);
+			manager.on("sessionCreated", listener);
 
-			const tab = manager.createTab();
+			const result = manager.createSession();
 
-			expect(listener).toHaveBeenCalledWith(tab);
+			expect(listener).toHaveBeenCalledWith(result);
 		});
 	});
 
-	describe("closeTab", () => {
-		it("should close a tab", () => {
-			const tab = manager.createTab();
-			expect(manager.tabCount).toBe(1);
+	describe("removeSession", () => {
+		it("should remove a session", () => {
+			const { id } = manager.createSession();
+			expect(manager.sessionCount).toBe(1);
 
-			manager.closeTab(tab.id);
+			manager.removeSession(id);
 
-			expect(manager.tabCount).toBe(0);
+			expect(manager.sessionCount).toBe(0);
 		});
 
-		it("should emit tabClosed event", () => {
-			const tab = manager.createTab();
+		it("should emit sessionRemoved event", () => {
+			const { id } = manager.createSession();
 			const listener = vi.fn();
-			manager.on("tabClosed", listener);
+			manager.on("sessionRemoved", listener);
 
-			manager.closeTab(tab.id);
+			manager.removeSession(id);
 
-			expect(listener).toHaveBeenCalledWith(tab.id);
+			expect(listener).toHaveBeenCalledWith(id);
 		});
 
-		it("should activate another tab when closing active tab", () => {
-			const tab1 = manager.createTab();
-			const tab2 = manager.createTab();
-			manager.activateTab(tab1.id);
+		it("should activate another session when removing active session", () => {
+			const session1 = manager.createSession();
+			const session2 = manager.createSession();
+			manager.setActiveSession(session1.id);
 
-			manager.closeTab(tab1.id);
+			manager.removeSession(session1.id);
 
-			expect(manager.activeTabId).toBe(tab2.id);
+			expect(manager.activeSessionId).toBe(session2.id);
 		});
 
-		it("should set activeTabId to null when closing last tab", () => {
-			const tab = manager.createTab();
-			manager.closeTab(tab.id);
+		it("should set activeSessionId to null when removing last session", () => {
+			const { id } = manager.createSession();
+			manager.removeSession(id);
 
-			expect(manager.activeTabId).toBeNull();
-			expect(manager.activeTab).toBeNull();
+			expect(manager.activeSessionId).toBeNull();
+			expect(manager.activeSession).toBeNull();
 		});
 	});
 
-	describe("activateTab", () => {
-		it("should activate a tab", () => {
-			const tab1 = manager.createTab();
-			const tab2 = manager.createTab();
+	describe("setActiveSession", () => {
+		it("should set active session", () => {
+			const session1 = manager.createSession();
+			const session2 = manager.createSession();
 
-			manager.activateTab(tab2.id);
+			manager.setActiveSession(session2.id);
 
-			expect(manager.activeTabId).toBe(tab2.id);
-			expect(manager.activeTab).toBe(tab2);
+			expect(manager.activeSessionId).toBe(session2.id);
 		});
 
-		it("should emit tabActivated event", () => {
-			const tab1 = manager.createTab();
-			const tab2 = manager.createTab();
+		it("should emit activeSessionChanged event", () => {
+			const session1 = manager.createSession();
+			const session2 = manager.createSession();
 			const listener = vi.fn();
-			manager.on("tabActivated", listener);
+			manager.on("activeSessionChanged", listener);
 
-			manager.activateTab(tab2.id);
+			manager.setActiveSession(session2.id);
 
-			expect(listener).toHaveBeenCalledWith(tab2);
+			expect(listener).toHaveBeenCalledWith(session2.id);
 		});
 
-		it("should do nothing for non-existent tab", () => {
-			const tab = manager.createTab();
+		it("should do nothing for non-existent session", () => {
+			const { id } = manager.createSession();
 
-			manager.activateTab("non-existent");
+			manager.setActiveSession("non-existent");
 
-			expect(manager.activeTabId).toBe(tab.id);
-		});
-	});
-
-	describe("renameTab", () => {
-		it("should rename a tab", () => {
-			const tab = manager.createTab();
-
-			manager.renameTab(tab.id, "New Name");
-
-			expect(tab.name).toBe("New Name");
-		});
-
-		it("should emit tabRenamed event", () => {
-			const tab = manager.createTab();
-			const listener = vi.fn();
-			manager.on("tabRenamed", listener);
-
-			manager.renameTab(tab.id, "New Name");
-
-			expect(listener).toHaveBeenCalledWith(tab);
+			expect(manager.activeSessionId).toBe(id);
 		});
 	});
 
-	describe("getAllTabs", () => {
-		it("should return all tabs", () => {
-			const tab1 = manager.createTab();
-			const tab2 = manager.createTab();
-			const tab3 = manager.createTab();
+	describe("getSession", () => {
+		it("should return session by ID", () => {
+			const { id, session } = manager.createSession();
 
-			const tabs = manager.getAllTabs();
-
-			expect(tabs).toHaveLength(3);
-			expect(tabs).toContain(tab1);
-			expect(tabs).toContain(tab2);
-			expect(tabs).toContain(tab3);
+			expect(manager.getSession(id)).toBe(session);
 		});
 
-		it("should return empty array when no tabs", () => {
-			expect(manager.getAllTabs()).toEqual([]);
-		});
-	});
-
-	describe("getTab", () => {
-		it("should return tab by ID", () => {
-			const tab = manager.createTab();
-
-			expect(manager.getTab(tab.id)).toBe(tab);
-		});
-
-		it("should return undefined for non-existent tab", () => {
-			expect(manager.getTab("non-existent")).toBeUndefined();
+		it("should return undefined for non-existent session", () => {
+			expect(manager.getSession("non-existent")).toBeUndefined();
 		});
 	});
 
 	describe("executeInActive", () => {
-		it("should throw when no active terminal", async () => {
+		it("should throw when no active session", async () => {
 			await expect(manager.executeInActive("echo test")).rejects.toThrow(
 				"No active terminal"
 			);
 		});
 
-		it("should execute command in active terminal", async () => {
-			manager.createTab();
+		it("should execute command in active session", async () => {
+			manager.createSession();
 			const output = await manager.executeInActive("echo hello");
 
 			expect(output).toBe("hello");
 		});
+	});
 
-		it("should add command to history", async () => {
-			const tab = manager.createTab();
-			await manager.executeInActive("echo hello");
+	describe("executeInSession", () => {
+		it("should execute command in specific session", async () => {
+			const { id } = manager.createSession();
+			const output = await manager.executeInSession(id, "echo hello");
 
-			expect(tab.history).toContain("echo hello");
+			expect(output).toBe("hello");
 		});
 
-		it("should not add duplicate commands to history", async () => {
-			const tab = manager.createTab();
-			await manager.executeInActive("echo hello");
-			await manager.executeInActive("echo hello");
-
-			expect(tab.history.filter((cmd) => cmd === "echo hello")).toHaveLength(1);
+		it("should throw for non-existent session", async () => {
+			await expect(manager.executeInSession("non-existent", "echo test")).rejects.toThrow(
+				"Session non-existent not found"
+			);
 		});
 	});
 
 	describe("history navigation", () => {
 		it("should navigate to previous command", async () => {
-			manager.createTab();
-			await manager.executeInActive("echo 1");
-			await manager.executeInActive("echo 2");
-			await manager.executeInActive("echo 3");
+			const { id } = manager.createSession();
+			await manager.executeInSession(id, "echo 1");
+			await manager.executeInSession(id, "echo 2");
+			await manager.executeInSession(id, "echo 3");
 
-			expect(manager.historyPrevious()).toBe("echo 3");
-			expect(manager.historyPrevious()).toBe("echo 2");
-			expect(manager.historyPrevious()).toBe("echo 1");
+			expect(manager.historyPrevious(id)).toBe("echo 3");
+			expect(manager.historyPrevious(id)).toBe("echo 2");
+			expect(manager.historyPrevious(id)).toBe("echo 1");
 		});
 
 		it("should navigate to next command", async () => {
-			manager.createTab();
-			await manager.executeInActive("echo 1");
-			await manager.executeInActive("echo 2");
+			const { id } = manager.createSession();
+			await manager.executeInSession(id, "echo 1");
+			await manager.executeInSession(id, "echo 2");
 
-			manager.historyPrevious();
-			manager.historyPrevious();
+			manager.historyPrevious(id);
+			manager.historyPrevious(id);
 
-			expect(manager.historyNext()).toBe("echo 2");
+			expect(manager.historyNext(id)).toBe("echo 2");
 		});
 
 		it("should return empty string when at end of history", async () => {
-			manager.createTab();
-			await manager.executeInActive("echo 1");
+			const { id } = manager.createSession();
+			await manager.executeInSession(id, "echo 1");
 
-			expect(manager.historyNext()).toBe("");
+			expect(manager.historyNext(id)).toBe("");
 		});
 
 		it("should return null when no history", () => {
-			manager.createTab();
+			const { id } = manager.createSession();
 
-			expect(manager.historyPrevious()).toBeNull();
+			expect(manager.historyPrevious(id)).toBeNull();
 		});
 	});
 
 	describe("destroy", () => {
-		it("should kill all sessions and clear tabs", () => {
-			const tab1 = manager.createTab();
-			const tab2 = manager.createTab();
+		it("should kill all sessions and clear state", () => {
+			manager.createSession();
+			manager.createSession();
 
 			manager.destroy();
 
-			expect(manager.tabCount).toBe(0);
-			expect(manager.activeTabId).toBeNull();
+			expect(manager.sessionCount).toBe(0);
+			expect(manager.activeSessionId).toBeNull();
 		});
 	});
 });
