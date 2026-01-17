@@ -13,15 +13,6 @@ export const TERMINAL_STYLES = `
 	font-size: var(--font-smaller);
 }
 
-/* Terminal Title Bar */
-.runbook-terminal-title {
-	padding: 4px 12px;
-	color: var(--text-muted);
-	font-size: var(--font-smaller);
-	border-bottom: 1px solid var(--background-modifier-border);
-	flex-shrink: 0;
-}
-
 /* Terminal Output Area */
 .runbook-terminal-output {
 	flex: 1;
