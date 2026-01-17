@@ -18,7 +18,6 @@ import { TerminalManager, TerminalView, TERMINAL_VIEW_TYPE, TERMINAL_STYLES } fr
 export default class RunbookPlugin extends Plugin {
 	private session: ShellSession | null = null;
 	private terminalManager: TerminalManager | null = null;
-	private terminalView: TerminalView | null = null;
 	private styleEl: HTMLStyleElement | null = null;
 
 	constructor(app: App, manifest: PluginManifest) {
@@ -40,10 +39,9 @@ export default class RunbookPlugin extends Plugin {
 		// Initialize terminal manager
 		this.terminalManager = new TerminalManager();
 
-		// Register terminal view
+		// Register terminal view (each instance is a separate terminal)
 		this.registerView(TERMINAL_VIEW_TYPE, (leaf) => {
-			this.terminalView = new TerminalView(leaf, this.terminalManager!);
-			return this.terminalView;
+			return new TerminalView(leaf, this.terminalManager!);
 		});
 
 		// Initialize shell session (for backward compatibility)
@@ -114,7 +112,7 @@ export default class RunbookPlugin extends Plugin {
 		this.registerMarkdownPostProcessor(
 			createCodeBlockProcessor({
 				getSession: () => this.session,
-				getTerminalView: () => this.terminalView,
+				getTerminalView: () => this.getActiveTerminalView(),
 			})
 		);
 		console.log("Runbook: Code block processor registered");
@@ -145,22 +143,6 @@ export default class RunbookPlugin extends Plugin {
 	 * Execute the current line or selection in the code block
 	 */
 	private async executeLineOrSelection(editor: Editor): Promise<void> {
-		// Ensure shell is running
-		if (!this.session) {
-			new Notice("Session not initialized");
-			return;
-		}
-
-		if (!this.session.isAlive) {
-			new Notice("Shell not running. Restarting...");
-			try {
-				this.session.spawn();
-			} catch (err) {
-				new Notice(`Failed to start shell: ${err}`);
-				return;
-			}
-		}
-
 		// Get code block context
 		const context = getCodeBlockContext(editor);
 
@@ -192,18 +174,45 @@ export default class RunbookPlugin extends Plugin {
 		});
 
 		try {
-			const output = await this.session.execute(command);
+			let output: string;
 
-			// Show output in notice (truncate if too long)
-			const maxLen = 200;
-			const displayOutput = output.length > maxLen
-				? output.slice(0, maxLen) + "..."
-				: output;
-
-			if (output.trim()) {
-				new Notice(`Output:\n${displayOutput}`);
+			// Use terminal view if available, otherwise use standalone session
+			const terminalView = this.getActiveTerminalView();
+			if (terminalView) {
+				output = await terminalView.executeFromCodeBlock(
+					command,
+					context.codeBlock.language || "bash"
+				);
 			} else {
-				new Notice("Command executed (no output)");
+				// Fallback to standalone session
+				if (!this.session) {
+					new Notice("Session not initialized");
+					return;
+				}
+
+				if (!this.session.isAlive) {
+					new Notice("Shell not running. Restarting...");
+					try {
+						this.session.spawn();
+					} catch (err) {
+						new Notice(`Failed to start shell: ${err}`);
+						return;
+					}
+				}
+
+				output = await this.session.execute(command);
+
+				// Show output in notice for standalone session
+				const maxLen = 200;
+				const displayOutput = output.length > maxLen
+					? output.slice(0, maxLen) + "..."
+					: output;
+
+				if (output.trim()) {
+					new Notice(`Output:\n${displayOutput}`);
+				} else {
+					new Notice("Command executed (no output)");
+				}
 			}
 
 			console.log("Runbook: Execution complete", { output });
@@ -322,8 +331,9 @@ export default class RunbookPlugin extends Plugin {
 		if (leaf) {
 			workspace.revealLeaf(leaf);
 			// Focus the input
-			if (this.terminalView) {
-				this.terminalView.focusInput();
+			const view = leaf.view as TerminalView;
+			if (view && view.focusInput) {
+				view.focusInput();
 			}
 		}
 	}
@@ -360,10 +370,24 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
-	 * Get the terminal view (for external access)
+	 * Get the active terminal view (the one with the active session)
 	 */
-	getTerminalView(): TerminalView | null {
-		return this.terminalView;
+	getActiveTerminalView(): TerminalView | null {
+		const leaves = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+		if (leaves.length === 0) return null;
+
+		// Find the terminal with the active session
+		const activeSessionId = this.terminalManager?.activeSessionId;
+		for (const leaf of leaves) {
+			const view = leaf.view as TerminalView;
+			if (view && view.getSessionId && view.getSessionId() === activeSessionId) {
+				return view;
+			}
+		}
+
+		// Fallback to first terminal view
+		const firstView = leaves[0].view as TerminalView;
+		return firstView || null;
 	}
 
 	/**

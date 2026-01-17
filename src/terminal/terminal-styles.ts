@@ -13,122 +13,6 @@ export const TERMINAL_STYLES = `
 	font-size: var(--font-smaller);
 }
 
-/* Tab Bar */
-.runbook-terminal-tab-bar {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	padding: 4px 8px;
-	background-color: var(--background-secondary);
-	border-bottom: 1px solid var(--background-modifier-border);
-	min-height: 32px;
-}
-
-.runbook-terminal-tab {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 8px;
-	border-radius: 4px;
-	cursor: pointer;
-	color: var(--text-muted);
-	background-color: transparent;
-	transition: background-color 0.15s ease;
-}
-
-.runbook-terminal-tab:hover {
-	background-color: var(--background-modifier-hover);
-	color: var(--text-normal);
-}
-
-.runbook-terminal-tab.is-active {
-	background-color: var(--background-primary);
-	color: var(--text-normal);
-}
-
-.runbook-terminal-tab-icon {
-	display: flex;
-	align-items: center;
-}
-
-.runbook-terminal-tab-icon svg {
-	width: 14px;
-	height: 14px;
-}
-
-.runbook-terminal-tab-name {
-	max-width: 150px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.runbook-terminal-tab-close {
-	display: flex;
-	align-items: center;
-	padding: 2px;
-	border-radius: 3px;
-	opacity: 0;
-	transition: opacity 0.15s ease;
-}
-
-.runbook-terminal-tab:hover .runbook-terminal-tab-close {
-	opacity: 1;
-}
-
-.runbook-terminal-tab-close:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.runbook-terminal-tab-close svg {
-	width: 12px;
-	height: 12px;
-}
-
-.runbook-terminal-tab-add {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	border-radius: 4px;
-	cursor: pointer;
-	color: var(--text-muted);
-	transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.runbook-terminal-tab-add:hover {
-	background-color: var(--background-modifier-hover);
-	color: var(--text-normal);
-}
-
-.runbook-terminal-tab-add svg {
-	width: 16px;
-	height: 16px;
-}
-
-.runbook-terminal-collapse {
-	margin-left: auto;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	border-radius: 4px;
-	cursor: pointer;
-	color: var(--text-muted);
-	transition: background-color 0.15s ease;
-}
-
-.runbook-terminal-collapse:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.runbook-terminal-collapse svg {
-	width: 16px;
-	height: 16px;
-}
-
 /* Terminal Header */
 .runbook-terminal-header {
 	display: flex;
@@ -207,6 +91,8 @@ export const TERMINAL_STYLES = `
 	overflow-y: auto;
 	padding: 8px 12px;
 	background-color: var(--background-primary);
+	user-select: text;
+	cursor: text;
 }
 
 /* Terminal Lines */
