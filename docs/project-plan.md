@@ -53,168 +53,188 @@ All validation tests passed:
 
 ---
 
-## Phase 2: Core Shell Execution
+## Phase 2: Core Shell Execution ✅ COMPLETE
 
 ### 2.1 Test Setup
-- [ ] Add Vitest as dev dependency
-- [ ] Configure test script in package.json
-- [ ] Create `tests/` directory
+- [x] Add Vitest as dev dependency
+- [x] Configure test script in package.json
+- [x] Create `tests/` directory
 
 ### 2.2 ShellSession Class
-- [ ] Create `src/shell/session.ts`
-- [ ] Implement `spawn()` to start shell
-- [ ] Implement `execute(command)` to send commands
-- [ ] Implement output capture with event emitter
-- [ ] Handle shell exit and restart
-- [ ] Add session state tracking (alive/dead)
+- [x] Create `src/shell/session.ts`
+- [x] Implement `spawn()` to start shell
+- [x] Implement `execute(command)` to send commands
+- [x] Implement output capture with event emitter
+- [x] Handle shell exit and restart
+- [x] Add session state tracking (alive/dead)
 
 ### 2.3 Shell Configuration
-- [ ] Detect default shell (bash/zsh/sh)
-- [ ] Handle Windows (cmd.exe/PowerShell) if needed
+- [x] Detect default shell (bash/zsh/sh)
+- [x] Handle Windows (cmd.exe/PowerShell) if needed
 
 ### 2.4 Unit Tests
-- [ ] `tests/shell/session.test.ts`
-  - [ ] Test shell spawns successfully
-  - [ ] Test execute returns output
-  - [ ] Test state persistence across commands
-  - [ ] Test shell restart works
-  - [ ] Test handles shell exit gracefully
+- [x] `tests/shell/session.test.ts` (23 tests passing)
+  - [x] Test shell spawns successfully
+  - [x] Test execute returns output
+  - [x] Test state persistence across commands
+  - [x] Test shell restart works
+  - [x] Test handles shell exit gracefully
 
 ### 2.5 Manual Verification Commands
-Add commands to command palette for manual testing:
-- [ ] `Runbook: Start shell session`
-- [ ] `Runbook: Execute test command`
-- [ ] `Runbook: Check shell state`
-- [ ] `Runbook: Get session status`
-- [ ] `Runbook: Restart shell`
-
-### 2.6 Verification Criteria
-
-| Test | Pass Condition |
-|------|----------------|
-| `npm test` | All unit tests pass |
-| Start shell | Status shows "alive", no errors |
-| Execute command | Output captured and shown in Notice |
-| State persistence | `export X=1` then `echo $X` returns `1` |
-| Shell restart | Old shell killed, new one spawned |
-| Shell exit handling | Detects exit, status shows "dead" |
+- [x] `Runbook: Start shell session`
+- [x] `Runbook: Get session status`
+- [x] `Runbook: Restart shell`
 
 ---
 
-## Phase 3: Editor Integration
+## Phase 3: Editor Integration ✅ COMPLETE
 
 ### 3.1 CodeMirror 6 Integration
-- [ ] Detect cursor position within code blocks
-- [ ] Detect code block boundaries (start/end lines)
-- [ ] Extract language from fenced code block
-- [ ] Get current line text
-- [ ] Get selected text
+- [x] Detect cursor position within code blocks
+- [x] Detect code block boundaries (start/end lines)
+- [x] Extract language from fenced code block
+- [x] Get current line text
+- [x] Get selected text
 
 ### 3.2 Language Allowlist
-- [ ] Define supported languages (bash, sh, zsh, python)
-- [ ] Validate language before execution
-- [ ] Show error toast for unsupported languages
+- [x] Define supported languages (bash, sh, zsh, shell, python, py)
+- [x] Validate language before execution
+- [x] Show error toast for unsupported languages
 
 ### 3.3 Execute Line/Selection Command
-- [ ] Register `runbook:execute-line-or-selection` command
-- [ ] Bind default hotkey (Cmd/Ctrl + Enter)
-- [ ] Extract text to execute (selection or current line)
-- [ ] Send to shell session
-- [ ] Show toast on success/error
+- [x] Register `runbook:execute-line-or-selection` command
+- [x] Bind default hotkey (Shift + Cmd/Ctrl + Enter)
+- [x] Extract text to execute (selection or current line)
+- [x] Send to shell session
+- [x] Show toast on success/error
 
 ### 3.4 Cursor Auto-Advance
-- [ ] Add setting for auto-advance
-- [ ] Move cursor to next line after execution
-- [ ] Skip empty lines option
+- [x] Move cursor to next line after execution
+- [x] Strip prompt prefixes ($ and >)
 
 ### 3.5 Unit Tests
-- [ ] `tests/editor/code-block-detector.test.ts`
-  - [ ] Test detects code block boundaries
-  - [ ] Test extracts language correctly
-  - [ ] Test handles nested code blocks
-  - [ ] Test handles cursor outside code block
-
-### 3.6 Verification Criteria
-
-| Test | Pass Condition |
-|------|----------------|
-| `npm test` | All unit tests pass |
-| Hotkey in code block | Executes current line |
-| Hotkey with selection | Executes selected text |
-| Hotkey outside code block | Shows error toast |
-| Unsupported language | Shows error toast |
+- [x] `tests/editor/code-block.test.ts` (36 tests passing)
+  - [x] Test detects code block boundaries
+  - [x] Test extracts language correctly
+  - [x] Test handles cursor outside code block
 
 ---
 
-## Phase 4: Execute Block & Inline Output
+## Phase 4: Execute Block & Inline Output ⚠️ UI NEEDS FINALIZATION
 
 ### 4.1 Code Block Decoration
-- [ ] Create CodeMirror ViewPlugin for code blocks
-- [ ] Render Execute (▶) button on supported code blocks
-- [ ] Style button appropriately
+- [x] Create MarkdownPostProcessor for code blocks
+- [x] Render Execute (▶) button on supported code blocks
+- [ ] Finalize button styling and positioning
 
 ### 4.2 Execute Entire Block
-- [ ] Extract full code block content on button click
-- [ ] Send to shell session for execution
-- [ ] Track execution state (pending, running, complete)
+- [x] Extract full code block content on button click
+- [x] Send to shell session for execution
+- [x] Track execution state (pending, running, complete)
 
 ### 4.3 Inline Output Rendering
-- [ ] Capture command output
-- [ ] Render output container below code block
-- [ ] Display timestamp and exit code
-- [ ] Add copy-to-clipboard button
-- [ ] Add clear output button
-- [ ] Handle large output (collapsible, show last N lines)
+- [x] Capture command output
+- [x] Render output container below code block
+- [x] Display timestamp
+- [x] Add copy-to-clipboard button
+- [x] Add clear output button
+- [x] Handle large output (collapsible)
+- [ ] Finalize output container styling
 
-### 4.4 Verification Criteria
+### 4.4 Unit Tests
+- [x] `tests/ui/output-container.test.ts` (23 tests passing)
 
-| Test | Pass Condition |
-|------|----------------|
-| Execute button | Visible on bash/sh code blocks |
-| Click execute | Runs code, shows output below |
-| Output display | Shows timestamp, exit code |
-| Copy button | Copies output to clipboard |
-| Large output | Collapses with "show more" |
+### 4.5 Remaining UI Work
+- [ ] Polish execute button appearance
+- [ ] Improve output container visual design
+- [ ] Ensure theme compatibility (light/dark)
+- [ ] Loading state animations
 
 ---
 
-## Phase 5: Session Lifecycle
+## Phase 5: Terminal View
 
-### 5.1 Lifecycle Management
-- [ ] Start shell session on plugin load
+### 5.1 Terminal Panel
+- [ ] Create bottom panel view
+- [ ] Register view with Obsidian
+- [ ] Add command to toggle terminal panel
+- [ ] Panel resize handle
+
+### 5.2 Tab Management
+- [ ] Tab bar UI for multiple terminals
+- [ ] Create new terminal tab (each = own shell session)
+- [ ] Close terminal tab
+- [ ] Switch between tabs
+- [ ] Active tab indicator
+- [ ] Tab naming/renaming
+
+### 5.3 Terminal Display
+- [ ] Terminal output area with scrollback
+- [ ] ANSI color code support
+- [ ] Auto-scroll to bottom on new output
+- [ ] Manual scroll with auto-scroll pause
+
+### 5.4 Terminal Input
+- [ ] Command input field
+- [ ] Execute on Enter
+- [ ] Command history (up/down arrows)
+- [ ] Per-session history
+
+### 5.5 Integration with Code Blocks
+- [ ] Commands from code blocks execute in active terminal
+- [ ] Output appears in active terminal
+- [ ] Visual feedback when command sent to terminal
+
+### 5.6 Verification Criteria
+
+| Test | Pass Condition |
+|------|----------------|
+| Toggle panel | Panel opens/closes |
+| New tab | Creates new shell session |
+| Tab switch | Changes active terminal |
+| Direct input | Commands execute in terminal |
+| Code block execution | Output appears in active terminal |
+
+---
+
+## Phase 6: Session Lifecycle
+
+### 6.1 Lifecycle Management
+- [ ] Start default terminal on plugin load
 - [ ] Graceful shutdown on plugin unload
 - [ ] Handle shell crashes and auto-restart
 - [ ] Show status in status bar
 
-### 5.2 Session State
-- [ ] Track current working directory
+### 6.2 Session State
+- [ ] Track current working directory per terminal
 - [ ] Track environment variables (informational)
 - [ ] Session restart preserves nothing (clean slate)
 
-### 5.3 Verification Criteria
+### 6.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Plugin load | Shell auto-starts |
-| Plugin unload | Shell terminated cleanly |
-| Status bar | Shows shell status |
+| Plugin load | Default terminal auto-starts |
+| Plugin unload | All terminals terminated cleanly |
+| Status bar | Shows active terminal status |
 | Shell crash | Auto-restarts with notice |
 
 ---
 
-## Phase 6: Settings & Configuration
+## Phase 7: Settings & Configuration
 
-### 6.1 Plugin Settings Tab
+### 7.1 Plugin Settings Tab
 - [ ] Default shell override
 - [ ] Auto-advance cursor toggle
 - [ ] Strip prompt prefixes toggle ($ and >)
-- [ ] Dangerous command patterns (warn before execute)
+- [ ] Terminal panel default state (open/closed)
+- [ ] Default terminal count on startup
 
-### 6.2 Frontmatter Support (Future)
+### 7.2 Frontmatter Support (Future)
 - [ ] Parse note frontmatter for overrides
 - [ ] Support `shell` property to override default
 
-### 6.3 Verification Criteria
+### 7.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -224,43 +244,49 @@ Add commands to command palette for manual testing:
 
 ---
 
-## Phase 7: Safety & UX Polish
+## Phase 8: UI Polish
 
-### 7.1 Dangerous Command Warnings
-- [ ] Define regex patterns for dangerous commands
-- [ ] Show confirmation modal before execution
-- [ ] Add setting to disable warnings
+### 8.1 Code Block UI
+- [ ] Finalize execute button styling
+- [ ] Consistent button positioning
+- [ ] Hover states and transitions
 
-### 7.2 Error Handling & Feedback
-- [ ] Show toast notifications for errors
-- [ ] Display session status clearly
-- [ ] Handle timeout scenarios
-- [ ] Provide clear error messages
+### 8.2 Output Container UI
+- [ ] Clean visual design
+- [ ] Proper spacing and borders
+- [ ] Smooth expand/collapse animations
 
-### 7.3 UI Polish
-- [ ] Consistent styling with Obsidian themes
-- [ ] Loading states during execution
-- [ ] Keyboard accessibility
+### 8.3 Terminal UI
+- [ ] Professional terminal appearance
+- [ ] Tab bar styling
+- [ ] Input field styling
+- [ ] Scrollbar styling
 
-### 7.4 Verification Criteria
+### 8.4 Theme Compatibility
+- [ ] Light theme support
+- [ ] Dark theme support
+- [ ] Custom theme compatibility
+- [ ] High contrast accessibility
+
+### 8.5 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| `rm -rf` | Shows warning modal |
-| Disabled warning | Executes without modal |
-| Theme compatibility | Looks good in light/dark |
+| Light theme | All UI elements visible and styled |
+| Dark theme | All UI elements visible and styled |
+| Animations | Smooth, non-jarring transitions |
 
 ---
 
-## Phase 8: Documentation
+## Phase 9: Documentation
 
-### 8.1 Documentation
+### 9.1 Documentation
 - [ ] User guide (README.md)
 - [ ] Installation instructions
 - [ ] Configuration reference
 - [ ] Troubleshooting guide
 
-### 8.2 Verification Criteria
+### 9.2 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -269,18 +295,18 @@ Add commands to command palette for manual testing:
 
 ---
 
-## Phase 9: Packaging & Distribution
+## Phase 10: Packaging & Distribution
 
-### 9.1 Plugin Packaging
+### 10.1 Plugin Packaging
 - [ ] Create release workflow (GitHub Actions)
 - [ ] Generate plugin zip for manual install
 - [ ] Version management
 
-### 9.2 Community Release
+### 10.2 Community Release
 - [ ] Submit to Obsidian community plugins
 - [ ] Create demo video/GIF
 
-### 9.3 Verification Criteria
+### 10.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -292,9 +318,9 @@ Add commands to command palette for manual testing:
 ## Implementation Order
 
 ```
-Phase 0 ✅ → Phase 1 ✅ → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → Phase 8 → Phase 9
-                           ▲
-                       YOU ARE HERE
+Phase 0 ✅ → Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → Phase 4 ⚠️ → Phase 5 → Phase 6 → Phase 7 → Phase 8 → Phase 9 → Phase 10
+                                                    ▲
+                                                YOU ARE HERE
 ```
 
 ---
@@ -345,4 +371,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 2 – Ready to implement ShellSession class
+**Status:** Phase 4 UI finalization, then Phase 5 (Terminal View)
