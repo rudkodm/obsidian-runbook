@@ -92,8 +92,8 @@ export default class RunbookPlugin extends Plugin {
 		// Register code block post-processor for reading view
 		this.registerMarkdownPostProcessor(
 			createCodeBlockProcessor({
-				getSession: () => this.session,
 				getTerminalView: () => this.getActiveTerminalView(),
+				createTerminal: () => this.createNewTerminal(),
 			})
 		);
 		console.log("Runbook: Code block processor registered");
@@ -237,13 +237,13 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
-	 * Create a new terminal tab (as a new Obsidian tab)
+	 * Create a new terminal (opens at bottom as a horizontal split)
 	 */
 	private async createNewTerminal(): Promise<void> {
 		const { workspace } = this.app;
 
-		// Create a new leaf (tab) for the terminal
-		const leaf = workspace.getLeaf("tab");
+		// Create a new leaf at the bottom (horizontal split)
+		const leaf = workspace.getLeaf("split", "horizontal");
 		if (leaf) {
 			await leaf.setViewState({
 				type: TERMINAL_VIEW_TYPE,

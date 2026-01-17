@@ -11,6 +11,7 @@ export class TerminalView extends ItemView {
 	private manager: TerminalManager;
 	private sessionId: string;
 	private sessionName: string;
+	private currentPath: string = "";
 	private outputEl: HTMLElement;
 	private inputLine: HTMLElement;
 	private inputEl: HTMLInputElement;
@@ -31,7 +32,25 @@ export class TerminalView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `Terminal: ${this.sessionName}`;
+		if (this.currentPath) {
+			// Show shortened path (just the last directory name or ~ for home)
+			const path = this.currentPath;
+			const homeDir = process.env.HOME || process.env.USERPROFILE || "";
+			if (path === homeDir) {
+				return "~";
+			}
+			if (path.startsWith(homeDir)) {
+				const relativePath = path.substring(homeDir.length);
+				// Get the last part of the path
+				const parts = relativePath.split("/").filter(p => p);
+				if (parts.length === 0) return "~";
+				return parts[parts.length - 1];
+			}
+			// Just return the last directory name
+			const parts = path.split("/").filter(p => p);
+			return parts.length > 0 ? parts[parts.length - 1] : "/";
+		}
+		return this.sessionName;
 	}
 
 	getIcon(): string {
@@ -70,6 +89,9 @@ export class TerminalView extends ItemView {
 
 		// Set this as active when opened
 		this.manager.setActiveSession(this.sessionId);
+
+		// Get initial path and update title
+		await this.updateCurrentPath();
 
 		// Focus input
 		this.inputEl.focus();
@@ -122,11 +144,30 @@ export class TerminalView extends ItemView {
 			if (output.trim()) {
 				this.appendOutput(output, "output");
 			}
+			// Update current path after command
+			await this.updateCurrentPath();
 		} catch (err) {
 			this.appendOutput(`Error: ${err}`, "error");
 		}
 
 		this.scrollToBottom();
+	}
+
+	/**
+	 * Update the current working directory and refresh the title
+	 */
+	private async updateCurrentPath(): Promise<void> {
+		try {
+			const path = await this.manager.executeInSession(this.sessionId, "pwd");
+			const newPath = path.trim();
+			if (newPath && newPath !== this.currentPath) {
+				this.currentPath = newPath;
+				// Update the tab title
+				this.leaf.updateHeader();
+			}
+		} catch {
+			// Ignore errors - path update is not critical
+		}
 	}
 
 	/**
@@ -141,6 +182,8 @@ export class TerminalView extends ItemView {
 			if (output.trim()) {
 				this.appendOutput(output, "output");
 			}
+			// Update current path after command
+			await this.updateCurrentPath();
 			this.scrollToBottom();
 			return output;
 		} catch (err) {
