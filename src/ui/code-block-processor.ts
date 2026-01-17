@@ -1,6 +1,7 @@
 import { MarkdownPostProcessorContext, Notice, setIcon } from "obsidian";
 import { ShellSession } from "../shell/session";
 import { isLanguageSupported, stripPromptPrefix } from "../editor/code-block";
+import { TerminalView } from "../terminal/terminal-view";
 
 /**
  * Code Block Processor
@@ -9,6 +10,7 @@ import { isLanguageSupported, stripPromptPrefix } from "../editor/code-block";
 
 export interface CodeBlockProcessorOptions {
 	getSession: () => ShellSession | null;
+	getTerminalView?: () => TerminalView | null;
 }
 
 /**
@@ -143,7 +145,7 @@ function createCell(
 	runBtn.addEventListener("click", async (e) => {
 		e.preventDefault();
 		e.stopPropagation();
-		await executeCell(codeEl, options, state, outputArea, outputBody, outputTitle, runBtn);
+		await executeCell(codeEl, language, options, state, outputArea, outputBody, outputTitle, runBtn);
 	});
 
 	copyOutputBtn.addEventListener("click", (e) => {
@@ -173,6 +175,7 @@ function createCell(
  */
 async function executeCell(
 	codeEl: HTMLElement,
+	language: string,
 	options: CodeBlockProcessorOptions,
 	state: CellState,
 	outputArea: HTMLElement,
@@ -180,6 +183,24 @@ async function executeCell(
 	outputTitle: HTMLElement,
 	runBtn: HTMLElement
 ): Promise<void> {
+	const terminalView = options.getTerminalView?.();
+
+	// If terminal view exists, use it for execution
+	if (terminalView) {
+		await executeCellViaTerminal(
+			codeEl,
+			language,
+			terminalView,
+			state,
+			outputArea,
+			outputBody,
+			outputTitle,
+			runBtn
+		);
+		return;
+	}
+
+	// Fallback to direct session execution
 	const session = options.getSession();
 
 	if (!session) {
@@ -221,6 +242,92 @@ async function executeCell(
 
 			console.log("Runbook: Executing:", command);
 			const output = await session.execute(command);
+			if (output.trim()) {
+				outputs.push(output);
+			}
+		}
+
+		state.status = "done";
+		state.outputText = outputs.join("\n");
+		state.timestamp = new Date();
+
+		// Render output
+		outputBody.innerHTML = "";
+		if (state.outputText.trim()) {
+			const pre = document.createElement("pre");
+			pre.textContent = state.outputText;
+			outputBody.appendChild(pre);
+		} else {
+			const empty = document.createElement("div");
+			empty.className = "rb-cell-output-empty";
+			empty.textContent = "(no output)";
+			outputBody.appendChild(empty);
+		}
+
+		// Update title with timestamp
+		const timeStr = state.timestamp.toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+		});
+		outputTitle.textContent = `Output • ${timeStr}`;
+
+	} catch (err) {
+		state.status = "error";
+		state.outputText = err instanceof Error ? err.message : String(err);
+		state.timestamp = new Date();
+
+		outputArea.classList.add("has-error");
+		outputBody.innerHTML = "";
+		const pre = document.createElement("pre");
+		pre.className = "rb-cell-error";
+		pre.textContent = state.outputText;
+		outputBody.appendChild(pre);
+
+		outputTitle.textContent = "Error";
+		console.error("Runbook: Execution failed", err);
+	} finally {
+		runBtn.classList.remove("is-running");
+	}
+}
+
+/**
+ * Execute cell via terminal view
+ */
+async function executeCellViaTerminal(
+	codeEl: HTMLElement,
+	language: string,
+	terminalView: TerminalView,
+	state: CellState,
+	outputArea: HTMLElement,
+	outputBody: HTMLElement,
+	outputTitle: HTMLElement,
+	runBtn: HTMLElement
+): Promise<void> {
+	const code = codeEl.textContent || "";
+	if (!code.trim()) {
+		new Notice("Code block is empty");
+		return;
+	}
+
+	const lines = code.split("\n").filter((line) => line.trim().length > 0);
+
+	// Update state to running
+	state.status = "running";
+	outputArea.classList.remove("is-empty", "has-error");
+	outputBody.innerHTML = '<div class="rb-cell-spinner"></div>';
+	outputTitle.textContent = "Running...";
+	runBtn.classList.add("is-running");
+
+	try {
+		const outputs: string[] = [];
+
+		for (const line of lines) {
+			const command = stripPromptPrefix(line.trim());
+			if (!command) continue;
+
+			// Execute via terminal view (which logs to terminal panel)
+			const output = await terminalView.executeFromCodeBlock(command, language);
 			if (output.trim()) {
 				outputs.push(output);
 			}

@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Notice, Platform, Plugin, PluginManifest } from "obsidian";
+import { App, Editor, MarkdownView, Notice, Platform, Plugin, PluginManifest, WorkspaceLeaf } from "obsidian";
 import { ShellSession } from "./shell/session";
 import {
 	getCodeBlockContext,
@@ -8,6 +8,7 @@ import {
 	stripPromptPrefix,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
+import { TerminalManager, TerminalView, TERMINAL_VIEW_TYPE, TERMINAL_STYLES } from "./terminal";
 
 /**
  * Obsidian Runbook Plugin
@@ -16,6 +17,9 @@ import { createCodeBlockProcessor } from "./ui/code-block-processor";
  */
 export default class RunbookPlugin extends Plugin {
 	private session: ShellSession | null = null;
+	private terminalManager: TerminalManager | null = null;
+	private terminalView: TerminalView | null = null;
+	private styleEl: HTMLStyleElement | null = null;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
@@ -30,7 +34,19 @@ export default class RunbookPlugin extends Plugin {
 
 		console.log("Runbook: Plugin loading...");
 
-		// Initialize shell session
+		// Inject terminal styles
+		this.injectStyles();
+
+		// Initialize terminal manager
+		this.terminalManager = new TerminalManager();
+
+		// Register terminal view
+		this.registerView(TERMINAL_VIEW_TYPE, (leaf) => {
+			this.terminalView = new TerminalView(leaf, this.terminalManager!);
+			return this.terminalView;
+		});
+
+		// Initialize shell session (for backward compatibility)
 		this.session = new ShellSession();
 
 		// Set up session event listeners
@@ -77,6 +93,19 @@ export default class RunbookPlugin extends Plugin {
 			callback: () => this.getSessionStatus(),
 		});
 
+		// Terminal commands
+		this.addCommand({
+			id: "toggle-terminal",
+			name: "Toggle terminal panel",
+			callback: () => this.toggleTerminal(),
+		});
+
+		this.addCommand({
+			id: "new-terminal-session",
+			name: "New terminal session",
+			callback: () => this.createNewTerminal(),
+		});
+
 		// Auto-start shell session
 		this.session.spawn();
 		console.log("Runbook: Shell auto-started", { pid: this.session.pid });
@@ -85,6 +114,7 @@ export default class RunbookPlugin extends Plugin {
 		this.registerMarkdownPostProcessor(
 			createCodeBlockProcessor({
 				getSession: () => this.session,
+				getTerminalView: () => this.terminalView,
 			})
 		);
 		console.log("Runbook: Code block processor registered");
@@ -99,6 +129,16 @@ export default class RunbookPlugin extends Plugin {
 			this.session.kill();
 			this.session = null;
 		}
+		if (this.terminalManager) {
+			this.terminalManager.destroy();
+			this.terminalManager = null;
+		}
+		if (this.styleEl) {
+			this.styleEl.remove();
+			this.styleEl = null;
+		}
+		// Detach terminal leaves
+		this.app.workspace.detachLeavesOfType(TERMINAL_VIEW_TYPE);
 	}
 
 	/**
@@ -240,5 +280,96 @@ export default class RunbookPlugin extends Plugin {
 			new Notice(`Restart failed: ${err}`);
 			console.error("Runbook: Restart failed", err);
 		}
+	}
+
+	/**
+	 * Toggle the terminal panel
+	 */
+	private async toggleTerminal(): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+
+		if (existing.length > 0) {
+			// Close the terminal
+			existing.forEach((leaf) => leaf.detach());
+		} else {
+			// Open the terminal in the bottom panel
+			await this.activateTerminalView();
+		}
+	}
+
+	/**
+	 * Activate the terminal view
+	 */
+	private async activateTerminalView(): Promise<void> {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+
+		if (leaves.length > 0) {
+			leaf = leaves[0];
+		} else {
+			// Create new leaf in the bottom/right split
+			leaf = workspace.getLeaf("split", "horizontal");
+			if (leaf) {
+				await leaf.setViewState({
+					type: TERMINAL_VIEW_TYPE,
+					active: true,
+				});
+			}
+		}
+
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+			// Focus the input
+			if (this.terminalView) {
+				this.terminalView.focusInput();
+			}
+		}
+	}
+
+	/**
+	 * Create a new terminal tab
+	 */
+	private async createNewTerminal(): Promise<void> {
+		if (!this.terminalManager) {
+			new Notice("Terminal manager not initialized");
+			return;
+		}
+
+		// Ensure terminal view is open
+		const leaves = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+		if (leaves.length === 0) {
+			await this.activateTerminalView();
+		}
+
+		// Create new tab
+		const tab = this.terminalManager.createTab();
+		new Notice(`New terminal: ${tab.name}`);
+		console.log("Runbook: New terminal created", { id: tab.id, name: tab.name });
+	}
+
+	/**
+	 * Inject terminal styles into the document
+	 */
+	private injectStyles(): void {
+		this.styleEl = document.createElement("style");
+		this.styleEl.id = "runbook-terminal-styles";
+		this.styleEl.textContent = TERMINAL_STYLES;
+		document.head.appendChild(this.styleEl);
+	}
+
+	/**
+	 * Get the terminal view (for external access)
+	 */
+	getTerminalView(): TerminalView | null {
+		return this.terminalView;
+	}
+
+	/**
+	 * Get the terminal manager (for external access)
+	 */
+	getTerminalManager(): TerminalManager | null {
+		return this.terminalManager;
 	}
 }
