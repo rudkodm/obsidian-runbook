@@ -12,6 +12,7 @@ export class TerminalView extends ItemView {
 	private sessionId: string;
 	private sessionName: string;
 	private currentPath: string = "";
+	private titleEl: HTMLElement;
 	private outputEl: HTMLElement;
 	private inputLine: HTMLElement;
 	private inputEl: HTMLInputElement;
@@ -32,25 +33,7 @@ export class TerminalView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		if (this.currentPath) {
-			// Show shortened path (just the last directory name or ~ for home)
-			const path = this.currentPath;
-			const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-			if (path === homeDir) {
-				return "~";
-			}
-			if (path.startsWith(homeDir)) {
-				const relativePath = path.substring(homeDir.length);
-				// Get the last part of the path
-				const parts = relativePath.split("/").filter(p => p);
-				if (parts.length === 0) return "~";
-				return parts[parts.length - 1];
-			}
-			// Just return the last directory name
-			const parts = path.split("/").filter(p => p);
-			return parts.length > 0 ? parts[parts.length - 1] : "/";
-		}
-		return this.sessionName;
+		return `Terminal: ${this.sessionName.replace("Terminal ", "")}`;
 	}
 
 	getIcon(): string {
@@ -61,6 +44,10 @@ export class TerminalView extends ItemView {
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("runbook-terminal-view");
+
+		// Create title bar showing current path
+		this.titleEl = container.createDiv("runbook-terminal-title");
+		this.titleEl.setText("~");
 
 		// Create terminal output area (includes input at the bottom)
 		this.outputEl = container.createDiv("runbook-terminal-output");
@@ -162,12 +149,31 @@ export class TerminalView extends ItemView {
 			const newPath = path.trim();
 			if (newPath && newPath !== this.currentPath) {
 				this.currentPath = newPath;
-				// Update the tab title
-				this.leaf.updateHeader();
+				// Update the title bar with the path
+				this.updateTitleDisplay();
 			}
 		} catch {
 			// Ignore errors - path update is not critical
 		}
+	}
+
+	/**
+	 * Update the title display with a formatted path
+	 */
+	private updateTitleDisplay(): void {
+		if (!this.titleEl) return;
+
+		const path = this.currentPath;
+		const homeDir = process.env.HOME || process.env.USERPROFILE || "";
+
+		let displayPath = path;
+		if (path === homeDir) {
+			displayPath = "~";
+		} else if (path.startsWith(homeDir + "/")) {
+			displayPath = "~" + path.substring(homeDir.length);
+		}
+
+		this.titleEl.setText(displayPath);
 	}
 
 	/**
