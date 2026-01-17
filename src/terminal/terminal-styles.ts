@@ -13,81 +13,9 @@ export const TERMINAL_STYLES = `
 	font-size: var(--font-smaller);
 }
 
-/* Terminal Header */
-.runbook-terminal-header {
-	display: flex;
-	align-items: center;
-	padding: 4px 8px;
-	background-color: var(--background-secondary);
-	border-bottom: 1px solid var(--background-modifier-border);
-	min-height: 28px;
-}
-
-.runbook-terminal-nav {
-	display: flex;
-	gap: 4px;
-}
-
-.runbook-terminal-nav-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	border-radius: 3px;
-	cursor: pointer;
-	color: var(--text-muted);
-}
-
-.runbook-terminal-nav-btn:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.runbook-terminal-nav-btn svg {
-	width: 14px;
-	height: 14px;
-}
-
-.runbook-terminal-title {
-	flex: 1;
-	text-align: center;
-	color: var(--text-muted);
-	font-size: var(--font-smaller);
-}
-
-.runbook-terminal-menu {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 20px;
-	height: 20px;
-	border-radius: 3px;
-	cursor: pointer;
-	color: var(--text-muted);
-}
-
-.runbook-terminal-menu:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.runbook-terminal-menu svg {
-	width: 14px;
-	height: 14px;
-}
-
-/* Terminal Output Container */
-.runbook-terminal-output-container {
-	flex: 1;
-	overflow: hidden;
-	position: relative;
-}
-
+/* Terminal Output Area */
 .runbook-terminal-output {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
+	flex: 1;
 	overflow-y: auto;
 	padding: 8px 12px;
 	background-color: var(--background-primary);
@@ -100,6 +28,8 @@ export const TERMINAL_STYLES = `
 	white-space: pre-wrap;
 	word-break: break-all;
 	line-height: 1.5;
+	margin: 0;
+	padding: 0;
 }
 
 .runbook-terminal-line-command {
@@ -114,32 +44,17 @@ export const TERMINAL_STYLES = `
 	color: var(--text-error);
 }
 
-.runbook-terminal-line-info {
-	color: var(--text-muted);
-}
-
-/* Colored output for Runbook logs */
-.runbook-terminal-line-info .highlight-command {
-	color: var(--text-accent);
-}
-
-.runbook-terminal-line-info .highlight-output {
-	color: var(--color-green);
-}
-
-/* Terminal Input Container */
-.runbook-terminal-input-container {
+/* Input Line (at bottom of terminal) */
+.runbook-terminal-input-line {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 8px 12px;
-	background-color: var(--background-secondary);
-	border-top: 1px solid var(--background-modifier-border);
+	line-height: 1.5;
+	margin-top: 2px;
 }
 
 .runbook-terminal-prompt {
 	color: var(--text-accent);
-	font-weight: 500;
+	flex-shrink: 0;
 }
 
 .runbook-terminal-input {
@@ -149,7 +64,10 @@ export const TERMINAL_STYLES = `
 	outline: none;
 	color: var(--text-normal);
 	font-family: var(--font-monospace);
-	font-size: var(--font-smaller);
+	font-size: inherit;
+	padding: 0;
+	margin: 0;
+	line-height: inherit;
 }
 
 .runbook-terminal-input::placeholder {

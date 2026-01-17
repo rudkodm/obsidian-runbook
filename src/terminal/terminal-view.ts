@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf } from "obsidian";
 import { TerminalManager } from "./terminal-manager";
 
 export const TERMINAL_VIEW_TYPE = "runbook-terminal";
@@ -11,9 +11,10 @@ export class TerminalView extends ItemView {
 	private manager: TerminalManager;
 	private sessionId: string;
 	private sessionName: string;
-	private containerEl: HTMLElement;
 	private outputEl: HTMLElement;
+	private inputLine: HTMLElement;
 	private inputEl: HTMLInputElement;
+	private promptEl: HTMLElement;
 
 	constructor(leaf: WorkspaceLeaf, manager: TerminalManager) {
 		super(leaf);
@@ -38,60 +39,22 @@ export class TerminalView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
-		this.containerEl = this.contentEl;
-		this.containerEl.empty();
-		this.containerEl.addClass("runbook-terminal-view");
+		const container = this.contentEl;
+		container.empty();
+		container.addClass("runbook-terminal-view");
 
-		// Create terminal header
-		const headerEl = this.containerEl.createDiv("runbook-terminal-header");
-		this.renderHeader(headerEl);
+		// Create terminal output area (includes input at the bottom)
+		this.outputEl = container.createDiv("runbook-terminal-output");
 
-		// Create terminal output
-		this.outputEl = this.containerEl.createDiv("runbook-terminal-output-container");
-		const outputInner = this.outputEl.createDiv("runbook-terminal-output");
-		this.outputEl = outputInner;
+		// Create input line at the bottom of output
+		this.inputLine = this.outputEl.createDiv("runbook-terminal-input-line");
+		this.promptEl = this.inputLine.createSpan("runbook-terminal-prompt");
+		this.promptEl.setText("$ ");
 
-		// Create input area
-		const inputContainer = this.containerEl.createDiv("runbook-terminal-input-container");
-		this.renderInput(inputContainer);
-
-		// Set this as active when opened
-		this.manager.setActiveSession(this.sessionId);
-	}
-
-	async onClose(): Promise<void> {
-		// Remove the session when closing
-		this.manager.removeSession(this.sessionId);
-	}
-
-	private renderHeader(headerEl: HTMLElement): void {
-		headerEl.empty();
-
-		// Navigation arrows (placeholder for future use)
-		const navEl = headerEl.createDiv("runbook-terminal-nav");
-		const leftArrow = navEl.createSpan("runbook-terminal-nav-btn");
-		setIcon(leftArrow, "chevron-left");
-		const rightArrow = navEl.createSpan("runbook-terminal-nav-btn");
-		setIcon(rightArrow, "chevron-right");
-
-		// Terminal title
-		const titleEl = headerEl.createDiv("runbook-terminal-title");
-		titleEl.setText(`Terminal: ${this.sessionName}`);
-
-		// Menu button
-		const menuBtn = headerEl.createDiv("runbook-terminal-menu");
-		setIcon(menuBtn, "more-horizontal");
-	}
-
-	private renderInput(container: HTMLElement): void {
-		const promptEl = container.createSpan("runbook-terminal-prompt");
-		promptEl.setText("$");
-
-		this.inputEl = container.createEl("input", {
+		this.inputEl = this.inputLine.createEl("input", {
 			cls: "runbook-terminal-input",
 			attr: {
 				type: "text",
-				placeholder: "Enter command...",
 				spellcheck: "false",
 			},
 		});
@@ -99,16 +62,30 @@ export class TerminalView extends ItemView {
 		// Handle input events
 		this.inputEl.addEventListener("keydown", (e) => this.handleInputKeydown(e));
 
-		// Set as active when clicking in terminal
-		this.inputEl.addEventListener("focus", () => {
+		// Set as active when clicking anywhere in terminal
+		container.addEventListener("click", () => {
 			this.manager.setActiveSession(this.sessionId);
+			this.inputEl.focus();
 		});
+
+		// Set this as active when opened
+		this.manager.setActiveSession(this.sessionId);
+
+		// Focus input
+		this.inputEl.focus();
+	}
+
+	async onClose(): Promise<void> {
+		// Remove the session when closing
+		this.manager.removeSession(this.sessionId);
 	}
 
 	private async handleInputKeydown(e: KeyboardEvent): Promise<void> {
 		if (e.key === "Enter") {
-			const command = this.inputEl.value.trim();
-			if (command) {
+			const command = this.inputEl.value;
+			if (command.trim()) {
+				// Move input line content to output
+				this.commitInputLine(command);
 				this.inputEl.value = "";
 				await this.executeCommand(command);
 			}
@@ -117,6 +94,8 @@ export class TerminalView extends ItemView {
 			const prev = this.manager.historyPrevious(this.sessionId);
 			if (prev !== null) {
 				this.inputEl.value = prev;
+				// Move cursor to end
+				this.inputEl.setSelectionRange(prev.length, prev.length);
 			}
 		} else if (e.key === "ArrowDown") {
 			e.preventDefault();
@@ -127,17 +106,24 @@ export class TerminalView extends ItemView {
 		}
 	}
 
-	private async executeCommand(command: string): Promise<void> {
-		// Log the command
-		this.appendOutput(`$ ${command}\n`, "command");
+	private commitInputLine(command: string): void {
+		// Create a static line showing the executed command
+		const lineEl = document.createElement("div");
+		lineEl.className = "runbook-terminal-line runbook-terminal-line-command";
+		lineEl.textContent = `$ ${command}`;
 
+		// Insert before input line
+		this.outputEl.insertBefore(lineEl, this.inputLine);
+	}
+
+	private async executeCommand(command: string): Promise<void> {
 		try {
 			const output = await this.manager.executeInSession(this.sessionId, command);
 			if (output.trim()) {
-				this.appendOutput(output + "\n", "output");
+				this.appendOutput(output, "output");
 			}
 		} catch (err) {
-			this.appendOutput(`Error: ${err}\n`, "error");
+			this.appendOutput(`Error: ${err}`, "error");
 		}
 
 		this.scrollToBottom();
@@ -147,26 +133,30 @@ export class TerminalView extends ItemView {
 	 * Execute a command from a code block (external call)
 	 */
 	async executeFromCodeBlock(command: string, language: string): Promise<string> {
-		// Log the command (shell-style)
-		this.appendOutput(`$ ${command}\n`, "command");
+		// Show the command in terminal
+		this.commitInputLine(command);
 
 		try {
 			const output = await this.manager.executeInSession(this.sessionId, command);
 			if (output.trim()) {
-				this.appendOutput(`${output}\n`, "output");
+				this.appendOutput(output, "output");
 			}
 			this.scrollToBottom();
 			return output;
 		} catch (err) {
-			this.appendOutput(`Error: ${err}\n`, "error");
+			this.appendOutput(`Error: ${err}`, "error");
 			this.scrollToBottom();
 			throw err;
 		}
 	}
 
-	private appendOutput(text: string, type: "command" | "output" | "error" | "info"): void {
-		const lineEl = this.outputEl.createDiv(`runbook-terminal-line runbook-terminal-line-${type}`);
-		lineEl.setText(text);
+	private appendOutput(text: string, type: "output" | "error"): void {
+		const lineEl = document.createElement("div");
+		lineEl.className = `runbook-terminal-line runbook-terminal-line-${type}`;
+		lineEl.textContent = text;
+
+		// Insert before input line
+		this.outputEl.insertBefore(lineEl, this.inputLine);
 	}
 
 	private scrollToBottom(): void {

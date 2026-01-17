@@ -72,25 +72,6 @@ export default class RunbookPlugin extends Plugin {
 			],
 		});
 
-		// Shell management commands
-		this.addCommand({
-			id: "start-shell",
-			name: "Start shell session",
-			callback: () => this.startShell(),
-		});
-
-		this.addCommand({
-			id: "restart-shell",
-			name: "Restart shell session",
-			callback: () => this.restartShell(),
-		});
-
-		this.addCommand({
-			id: "get-session-status",
-			name: "Get session status",
-			callback: () => this.getSessionStatus(),
-		});
-
 		// Terminal commands
 		this.addCommand({
 			id: "toggle-terminal",
@@ -176,43 +157,24 @@ export default class RunbookPlugin extends Plugin {
 		try {
 			let output: string;
 
-			// Use terminal view if available, otherwise use standalone session
-			const terminalView = this.getActiveTerminalView();
+			// Get or create terminal view
+			let terminalView = this.getActiveTerminalView();
+			if (!terminalView) {
+				// Auto-create a terminal if none exists
+				await this.createNewTerminal();
+				// Wait for view to be ready
+				await new Promise(resolve => setTimeout(resolve, 200));
+				terminalView = this.getActiveTerminalView();
+			}
+
 			if (terminalView) {
 				output = await terminalView.executeFromCodeBlock(
 					command,
 					context.codeBlock.language || "bash"
 				);
 			} else {
-				// Fallback to standalone session
-				if (!this.session) {
-					new Notice("Session not initialized");
-					return;
-				}
-
-				if (!this.session.isAlive) {
-					new Notice("Shell not running. Restarting...");
-					try {
-						this.session.spawn();
-					} catch (err) {
-						new Notice(`Failed to start shell: ${err}`);
-						return;
-					}
-				}
-
-				output = await this.session.execute(command);
-
-				// Show output in notice for standalone session
-				const maxLen = 200;
-				const displayOutput = output.length > maxLen
-					? output.slice(0, maxLen) + "..."
-					: output;
-
-				if (output.trim()) {
-					new Notice(`Output:\n${displayOutput}`);
-				} else {
-					new Notice("Command executed (no output)");
-				}
+				new Notice("Failed to create terminal");
+				return;
 			}
 
 			console.log("Runbook: Execution complete", { output });
@@ -224,70 +186,6 @@ export default class RunbookPlugin extends Plugin {
 		} catch (err) {
 			new Notice(`Execution failed: ${err}`);
 			console.error("Runbook: Execution failed", err);
-		}
-	}
-
-	/**
-	 * Start the shell session
-	 */
-	private startShell(): void {
-		if (!this.session) {
-			new Notice("Session not initialized");
-			return;
-		}
-
-		if (this.session.isAlive) {
-			new Notice(`Shell already running (PID: ${this.session.pid})`);
-			return;
-		}
-
-		try {
-			this.session.spawn();
-			new Notice(`Shell started (PID: ${this.session.pid})`);
-			console.log("Runbook: Shell started", { pid: this.session.pid });
-		} catch (err) {
-			new Notice(`Failed to start shell: ${err}`);
-			console.error("Runbook: Failed to start shell", err);
-		}
-	}
-
-	/**
-	 * Get current session status
-	 */
-	private getSessionStatus(): void {
-		if (!this.session) {
-			new Notice("Session not initialized");
-			return;
-		}
-
-		const status = {
-			state: this.session.state,
-			pid: this.session.pid,
-			isAlive: this.session.isAlive,
-		};
-
-		const statusText = `State: ${status.state}\nPID: ${status.pid || "N/A"}\nAlive: ${status.isAlive}`;
-		new Notice(`Shell Status:\n${statusText}`);
-		console.log("Runbook: Session status", status);
-	}
-
-	/**
-	 * Restart the shell session
-	 */
-	private restartShell(): void {
-		if (!this.session) {
-			new Notice("Session not initialized");
-			return;
-		}
-
-		try {
-			const oldPid = this.session.pid;
-			this.session.restart();
-			new Notice(`Shell restarted\nOld PID: ${oldPid}\nNew PID: ${this.session.pid}`);
-			console.log("Runbook: Shell restarted", { oldPid, newPid: this.session.pid });
-		} catch (err) {
-			new Notice(`Restart failed: ${err}`);
-			console.error("Runbook: Restart failed", err);
 		}
 	}
 
@@ -339,24 +237,26 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
-	 * Create a new terminal tab
+	 * Create a new terminal tab (as a new Obsidian tab)
 	 */
 	private async createNewTerminal(): Promise<void> {
-		if (!this.terminalManager) {
-			new Notice("Terminal manager not initialized");
-			return;
-		}
+		const { workspace } = this.app;
 
-		// Ensure terminal view is open
-		const leaves = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
-		if (leaves.length === 0) {
-			await this.activateTerminalView();
-		}
+		// Create a new leaf (tab) for the terminal
+		const leaf = workspace.getLeaf("tab");
+		if (leaf) {
+			await leaf.setViewState({
+				type: TERMINAL_VIEW_TYPE,
+				active: true,
+			});
+			workspace.revealLeaf(leaf);
 
-		// Create new tab
-		const tab = this.terminalManager.createTab();
-		new Notice(`New terminal: ${tab.name}`);
-		console.log("Runbook: New terminal created", { id: tab.id, name: tab.name });
+			// Focus the terminal
+			const view = leaf.view as TerminalView;
+			if (view && view.focusInput) {
+				setTimeout(() => view.focusInput(), 100);
+			}
+		}
 	}
 
 	/**
