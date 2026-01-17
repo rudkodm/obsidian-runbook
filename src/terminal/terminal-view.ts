@@ -12,7 +12,6 @@ export class TerminalView extends ItemView {
 	private sessionId: string;
 	private sessionName: string;
 	private currentPath: string = "";
-	private titleEl: HTMLElement;
 	private outputEl: HTMLElement;
 	private inputLine: HTMLElement;
 	private inputEl: HTMLInputElement;
@@ -44,10 +43,6 @@ export class TerminalView extends ItemView {
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("runbook-terminal-view");
-
-		// Create title bar showing current path
-		this.titleEl = container.createDiv("runbook-terminal-title");
-		this.titleEl.setText("~");
 
 		// Create terminal output area (includes input at the bottom)
 		this.outputEl = container.createDiv("runbook-terminal-output");
@@ -158,11 +153,9 @@ export class TerminalView extends ItemView {
 	}
 
 	/**
-	 * Update the title display with a formatted path
+	 * Update the view header title with current path
 	 */
 	private updateTitleDisplay(): void {
-		if (!this.titleEl) return;
-
 		const path = this.currentPath;
 		const homeDir = process.env.HOME || process.env.USERPROFILE || "";
 
@@ -173,7 +166,11 @@ export class TerminalView extends ItemView {
 			displayPath = "~" + path.substring(homeDir.length);
 		}
 
-		this.titleEl.setText(displayPath);
+		// Update the view header title element directly
+		const titleEl = this.containerEl.querySelector(".view-header-title");
+		if (titleEl) {
+			titleEl.textContent = displayPath;
+		}
 	}
 
 	/**
