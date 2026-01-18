@@ -2,45 +2,38 @@
 
 /* ==================== RUN BUTTON (bottom-right of code block) ==================== */
 
-.rb-run-button.clickable-icon {
+button.rb-run-button {
+	display: none;
+	color: var(--text-muted);
 	position: absolute;
 	bottom: 0;
 	right: 0;
 	margin: 5px;
-	padding: 4px 8px;
-	height: auto;
+	padding: 5px 10px;
+	z-index: 100;
 	background-color: var(--background-secondary);
-	box-shadow: none;
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--button-radius);
 	cursor: pointer;
-	display: none;
-	z-index: 100;
 }
 
-.rb-run-button.clickable-icon:hover {
+button.rb-run-button:hover {
 	color: var(--text-normal);
-	background: var(--background-modifier-hover);
+	background-color: var(--background-modifier-hover);
 }
 
 /* Show on pre hover */
-pre:hover .rb-run-button.clickable-icon {
-	display: flex;
-	align-items: center;
-	justify-content: center;
+pre:hover button.rb-run-button {
+	display: block;
 }
 
 /* Running state - always visible */
-.rb-run-button.is-running {
-	display: flex !important;
-	align-items: center;
-	justify-content: center;
+button.rb-run-button.is-running {
+	display: block !important;
 	color: var(--text-accent);
 }
 
-.rb-run-button.is-running svg {
+button.rb-run-button.is-running svg {
 	animation: rb-spin 1s linear infinite;
 }
 
