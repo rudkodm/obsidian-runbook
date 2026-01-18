@@ -1,39 +1,43 @@
 /* Runbook Plugin Styles */
 
-/* ==================== RUN BUTTON (bottom-right of code block) ==================== */
+/* ==================== RUN BUTTON (top-right, next to native copy) ==================== */
 
-button.rb-run-button {
-	display: none;
-	color: var(--text-muted);
+.rb-run-button.clickable-icon {
 	position: absolute;
-	bottom: 0;
-	right: 0;
-	margin: 5px;
-	padding: 5px 10px;
-	z-index: 100;
-	background-color: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
+	top: 0;
+	right: 34px;
+	margin: 4px;
+	padding: 4px 6px;
+	height: auto;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	border: 0;
 	border-radius: var(--button-radius);
 	cursor: pointer;
+	opacity: 0;
+	z-index: 1;
+	transition: opacity 100ms ease-in-out;
 }
 
-button.rb-run-button:hover {
+.rb-run-button.clickable-icon:hover {
 	color: var(--text-normal);
-	background-color: var(--background-modifier-hover);
+	background: var(--background-modifier-hover);
 }
 
 /* Show on pre hover */
-pre:hover button.rb-run-button {
-	display: block;
+pre:hover .rb-run-button.clickable-icon {
+	opacity: 1;
 }
 
 /* Running state - always visible */
-button.rb-run-button.is-running {
-	display: block !important;
+.rb-run-button.is-running {
 	color: var(--text-accent);
+	opacity: 1 !important;
 }
 
-button.rb-run-button.is-running svg {
+.rb-run-button.is-running svg {
 	animation: rb-spin 1s linear infinite;
 }
 

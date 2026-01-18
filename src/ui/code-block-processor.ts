@@ -56,9 +56,9 @@ function addRunButton(
 	language: string,
 	options: CodeBlockProcessorOptions
 ): void {
-	// Run button - positioned at bottom-right of code block
+	// Run button - positioned at top-right next to native copy button
 	const runBtn = document.createElement("button");
-	runBtn.className = "rb-run-button";
+	runBtn.className = "rb-run-button clickable-icon";
 	runBtn.setAttribute("aria-label", "Run code in terminal");
 	setIcon(runBtn, "play");
 
