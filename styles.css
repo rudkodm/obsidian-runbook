@@ -1,26 +1,23 @@
 /* Runbook Plugin Styles */
 
-/* ==================== RUN BUTTON (inside pre, next to native copy) ==================== */
+/* ==================== RUN BUTTON (bottom-right of code block) ==================== */
 
-/* Match native copy button styling from Obsidian */
 .rb-run-button.clickable-icon {
 	position: absolute;
-	top: 0;
-	/* Native copy is at right:4px, our button goes to its left */
-	right: 34px;
-	margin: 4px;
-	padding: 4px 6px;
+	bottom: 0;
+	right: 0;
+	margin: 5px;
+	padding: 4px 8px;
 	height: auto;
-	background-color: transparent;
+	background-color: var(--background-secondary);
 	box-shadow: none;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
-	border: 0;
+	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--button-radius);
 	cursor: pointer;
-	opacity: 0;
-	z-index: 1;
-	transition: opacity 100ms ease-in-out;
+	display: none;
+	z-index: 100;
 }
 
 .rb-run-button.clickable-icon:hover {
@@ -28,15 +25,19 @@
 	background: var(--background-modifier-hover);
 }
 
-/* Show on pre hover (matching native copy button behavior) */
+/* Show on pre hover */
 pre:hover .rb-run-button.clickable-icon {
-	opacity: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 /* Running state - always visible */
 .rb-run-button.is-running {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
 	color: var(--text-accent);
-	opacity: 1 !important;
 }
 
 .rb-run-button.is-running svg {
