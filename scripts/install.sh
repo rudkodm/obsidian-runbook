@@ -20,6 +20,10 @@ mkdir -p "$PLUGIN_DIR"
 # Copy plugin files
 cp manifest.json "$PLUGIN_DIR/"
 cp main.js "$PLUGIN_DIR/"
+cp styles.css "$PLUGIN_DIR/"
+
+# Create .hotreload file for hot-reload plugin
+touch "$PLUGIN_DIR/.hotreload"
 
 echo "Plugin installed to: $PLUGIN_DIR"
 echo ""
