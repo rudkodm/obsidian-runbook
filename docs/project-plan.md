@@ -190,20 +190,59 @@ All validation tests passed:
 
 ---
 
-## Phase 6: Session Lifecycle
+## Phase 6: Real Terminal (xterm.js + node-pty)
 
-### 6.1 Lifecycle Management
+### 6.1 Dependencies
+- [ ] Add `node-pty` for PTY support
+- [ ] Add `xterm.js` for terminal emulation
+- [ ] Add `xterm-addon-fit` for auto-resize
+- [ ] Add `xterm-addon-web-links` for clickable links
+
+### 6.2 PTY Shell Session
+- [ ] Create `src/shell/pty-session.ts`
+- [ ] Replace `child_process.spawn` with `node-pty.spawn`
+- [ ] Handle PTY resize events
+- [ ] Proper signal handling (SIGINT, etc.)
+
+### 6.3 xterm.js Terminal View
+- [ ] Replace HTML div terminal with xterm.js Terminal
+- [ ] Integrate xterm.js into Obsidian ItemView
+- [ ] Handle terminal resize on panel resize
+- [ ] Theme integration (use Obsidian CSS variables)
+
+### 6.4 Full Terminal Features
+- [ ] ANSI color support
+- [ ] Cursor positioning
+- [ ] `clear` command works
+- [ ] Interactive programs (vim, less, top)
+- [ ] Copy/paste support
+- [ ] Selection support
+
+### 6.5 Verification Criteria
+
+| Test | Pass Condition |
+|------|----------------|
+| Colors | `ls --color` shows colored output |
+| Clear | `clear` clears the screen |
+| Interactive | `vim` opens and is usable |
+| Resize | Terminal reflows on panel resize |
+
+---
+
+## Phase 7: Session Lifecycle
+
+### 7.1 Lifecycle Management
 - [ ] Start default terminal on plugin load
 - [ ] Graceful shutdown on plugin unload
 - [ ] Handle shell crashes and auto-restart
 - [ ] Show status in status bar
 
-### 6.2 Session State
+### 7.2 Session State
 - [ ] Track current working directory per terminal
 - [ ] Track environment variables (informational)
 - [ ] Session restart preserves nothing (clean slate)
 
-### 6.3 Verification Criteria
+### 7.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -214,20 +253,20 @@ All validation tests passed:
 
 ---
 
-## Phase 7: Settings & Configuration
+## Phase 8: Settings & Configuration
 
-### 7.1 Plugin Settings Tab
+### 8.1 Plugin Settings Tab
 - [ ] Default shell override
 - [ ] Auto-advance cursor toggle
 - [ ] Strip prompt prefixes toggle ($ and >)
 - [ ] Terminal panel default state (open/closed)
 - [ ] Default terminal count on startup
 
-### 7.2 Frontmatter Support (Future)
+### 8.2 Frontmatter Support (Future)
 - [ ] Parse note frontmatter for overrides
 - [ ] Support `shell` property to override default
 
-### 7.3 Verification Criteria
+### 8.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -237,31 +276,31 @@ All validation tests passed:
 
 ---
 
-## Phase 8: UI Polish
+## Phase 9: UI Polish
 
-### 8.1 Code Block UI
+### 9.1 Code Block UI
 - [ ] Finalize execute button styling
 - [ ] Consistent button positioning
 - [ ] Hover states and transitions
 
-### 8.2 Output Container UI
+### 9.2 Output Container UI
 - [ ] Clean visual design
 - [ ] Proper spacing and borders
 - [ ] Smooth expand/collapse animations
 
-### 8.3 Terminal UI
+### 9.3 Terminal UI
 - [ ] Professional terminal appearance
 - [ ] Tab bar styling
 - [ ] Input field styling
 - [ ] Scrollbar styling
 
-### 8.4 Theme Compatibility
+### 9.4 Theme Compatibility
 - [ ] Light theme support
 - [ ] Dark theme support
 - [ ] Custom theme compatibility
 - [ ] High contrast accessibility
 
-### 8.5 Verification Criteria
+### 9.5 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -271,15 +310,15 @@ All validation tests passed:
 
 ---
 
-## Phase 9: Documentation
+## Phase 10: Documentation
 
-### 9.1 Documentation
+### 10.1 Documentation
 - [ ] User guide (README.md)
 - [ ] Installation instructions
 - [ ] Configuration reference
 - [ ] Troubleshooting guide
 
-### 9.2 Verification Criteria
+### 10.2 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -288,18 +327,18 @@ All validation tests passed:
 
 ---
 
-## Phase 10: Packaging & Distribution
+## Phase 11: Packaging & Distribution
 
-### 10.1 Plugin Packaging
+### 11.1 Plugin Packaging
 - [ ] Create release workflow (GitHub Actions)
 - [ ] Generate plugin zip for manual install
 - [ ] Version management
 
-### 10.2 Community Release
+### 11.2 Community Release
 - [ ] Submit to Obsidian community plugins
 - [ ] Create demo video/GIF
 
-### 10.3 Verification Criteria
+### 11.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -311,9 +350,9 @@ All validation tests passed:
 ## Implementation Order
 
 ```
-Phase 0 ✅ → Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → Phase 4 ⚠️ → Phase 5 ✅ → Phase 6 → Phase 7 → Phase 8 → Phase 9 → Phase 10
-                                                                   ▲
-                                                               YOU ARE HERE
+Phase 0-5 ✅ → Phase 6 (xterm.js) → Phase 7-8 → Phase 9-10 → Phase 11
+                     ▲
+                 YOU ARE HERE
 ```
 
 ---
@@ -364,4 +403,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 6 (Session Lifecycle) - Terminal View complete
+**Status:** Phase 6 (Real Terminal with xterm.js + node-pty)
