@@ -1,27 +1,13 @@
-/* Runbook Plugin - Notebook Cell Styles */
+/* Runbook Plugin Styles */
 
-/* ==================== CELL CONTAINER ==================== */
+/* ==================== RUN BUTTON (top-right, next to native copy) ==================== */
 
-.rb-cell {
-	position: relative;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	overflow: hidden;
-	margin: 12px 0;
-	background: var(--background-secondary);
-}
-
-/* ==================== RUN BUTTON (inside pre, next to native copy) ==================== */
-
-/* Match native copy button styling from Obsidian */
 .rb-run-button.clickable-icon {
 	position: absolute;
 	top: 0;
-	/* Native copy is at right:0, our button goes to its left */
-	/* Native: right:0 + margin:6px + width ~32px = occupies right 6-44px */
-	right: 36px;
-	margin: 6px;
-	padding: 6px 8px;
+	right: 34px;
+	margin: 4px;
+	padding: 4px 6px;
 	height: auto;
 	background-color: transparent;
 	box-shadow: none;
@@ -30,8 +16,9 @@
 	border: 0;
 	border-radius: var(--button-radius);
 	cursor: pointer;
-	display: none;
+	opacity: 0;
 	z-index: 1;
+	transition: opacity 100ms ease-in-out;
 }
 
 .rb-run-button.clickable-icon:hover {
@@ -39,19 +26,15 @@
 	background: var(--background-modifier-hover);
 }
 
-/* Show on pre hover (matching native copy button behavior) */
-.rb-cell-code pre:hover .rb-run-button.clickable-icon {
-	display: flex;
-	align-items: center;
-	justify-content: center;
+/* Show on pre hover */
+pre:hover .rb-run-button.clickable-icon {
+	opacity: 1;
 }
 
-/* Running state */
+/* Running state - always visible */
 .rb-run-button.is-running {
 	color: var(--text-accent);
-	display: flex !important;
-	align-items: center;
-	justify-content: center;
+	opacity: 1 !important;
 }
 
 .rb-run-button.is-running svg {
