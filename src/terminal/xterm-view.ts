@@ -88,7 +88,14 @@ export class XtermView extends ItemView {
 		});
 
 		// Start PTY
-		this.ptySession.spawn();
+		try {
+			this.ptySession.spawn();
+			console.log("Runbook: PTY spawned successfully, pid:", this.ptySession.pid);
+		} catch (err) {
+			console.error("Runbook: Failed to spawn PTY:", err);
+			this.terminal?.write(`\r\n[Failed to start terminal: ${err}]\r\n`);
+			this.terminal?.write("[This may be due to node-pty not being compatible with this Obsidian version]\r\n");
+		}
 
 		// Handle resize
 		this.resizeObserver = new ResizeObserver(() => {
@@ -133,9 +140,20 @@ export class XtermView extends ItemView {
 	 * Write text to the terminal (for code block execution)
 	 */
 	writeCommand(command: string): void {
-		if (this.ptySession) {
-			this.ptySession.write(command + "\n");
+		if (!this.ptySession) {
+			console.error("Runbook: No PTY session");
+			throw new Error("No PTY session available");
 		}
+		if (!this.ptySession.isAlive) {
+			console.error("Runbook: PTY session not alive, attempting to spawn...");
+			try {
+				this.ptySession.spawn();
+			} catch (err) {
+				console.error("Runbook: Failed to spawn PTY:", err);
+				throw new Error(`Failed to start terminal: ${err}`);
+			}
+		}
+		this.ptySession.write(command + "\n");
 	}
 
 	/**
