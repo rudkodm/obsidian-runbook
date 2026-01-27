@@ -1,14 +1,19 @@
 import { MarkdownPostProcessorContext, Notice, setIcon } from "obsidian";
 import { isLanguageSupported, stripPromptPrefix } from "../editor/code-block";
-import { TerminalView } from "../terminal/terminal-view";
 
 /**
  * Code Block Processor
  * Adds a run button to code blocks that executes in the terminal
  */
 
+// Interface for terminal view (works with both old TerminalView and new XtermView)
+interface ITerminalView {
+	writeCommand?(command: string): void;
+	executeFromCodeBlock?(command: string, language: string): Promise<string>;
+}
+
 export interface CodeBlockProcessorOptions {
-	getTerminalView: () => TerminalView | null;
+	getTerminalView: () => ITerminalView | null;
 	createTerminal: () => Promise<void>;
 }
 
@@ -104,7 +109,14 @@ function addRunButton(
 				const command = stripPromptPrefix(line.trim());
 				if (!command) continue;
 
-				await terminalView.executeFromCodeBlock(command, language);
+				// Use writeCommand for xterm-based terminal, executeFromCodeBlock for legacy
+				if (terminalView.writeCommand) {
+					terminalView.writeCommand(command);
+					// Small delay between commands for readability
+					await new Promise(resolve => setTimeout(resolve, 100));
+				} else if (terminalView.executeFromCodeBlock) {
+					await terminalView.executeFromCodeBlock(command, language);
+				}
 			}
 		} catch (err) {
 			new Notice(`Execution failed: ${err}`);
