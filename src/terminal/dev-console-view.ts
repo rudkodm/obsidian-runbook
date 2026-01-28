@@ -14,6 +14,7 @@ export class DevConsoleView extends ItemView {
 	private terminalEl: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private inputBuffer: string = "";
+	private cursorPos: number = 0; // Cursor position within inputBuffer
 	private commandHistory: string[] = [];
 	private historyIndex: number = -1;
 	private originalConsole: {
@@ -359,36 +360,117 @@ export class DevConsoleView extends ItemView {
 
 			case "\x7f": // Backspace
 			case "\b":
-				if (this.inputBuffer.length > 0) {
-					this.inputBuffer = this.inputBuffer.slice(0, -1);
-					this.terminal?.write("\b \b");
+				if (this.cursorPos > 0) {
+					// Delete character before cursor
+					this.inputBuffer =
+						this.inputBuffer.slice(0, this.cursorPos - 1) +
+						this.inputBuffer.slice(this.cursorPos);
+					this.cursorPos--;
+					// Redraw line from cursor position
+					this.redrawLine();
+				}
+				break;
+
+			case "\x1b[3~": // Delete key
+				if (this.cursorPos < this.inputBuffer.length) {
+					// Delete character at cursor
+					this.inputBuffer =
+						this.inputBuffer.slice(0, this.cursorPos) +
+						this.inputBuffer.slice(this.cursorPos + 1);
+					this.redrawLine();
 				}
 				break;
 
 			case "\x03": // Ctrl+C
 				this.terminal?.write("^C\r\n");
 				this.inputBuffer = "";
+				this.cursorPos = 0;
 				this.showPrompt();
 				break;
 
 			case "\x0c": // Ctrl+L
 				this.terminal?.clear();
 				this.showPrompt();
+				this.terminal?.write(this.inputBuffer);
+				// Move cursor to correct position
+				if (this.cursorPos < this.inputBuffer.length) {
+					this.terminal?.write(`\x1b[${this.inputBuffer.length - this.cursorPos}D`);
+				}
 				break;
 
-			case "\x1b[A": // Up arrow
-				this.navigateHistory(-1);
-				break;
-
-			case "\x1b[B": // Down arrow
+			case "\x1b[A": // Up arrow - go back in history (older)
 				this.navigateHistory(1);
 				break;
 
-			default:
-				if (data >= " " || data === "\t") {
-					this.inputBuffer += data;
-					this.terminal?.write(data);
+			case "\x1b[B": // Down arrow - go forward in history (newer)
+				this.navigateHistory(-1);
+				break;
+
+			case "\x1b[C": // Right arrow
+				if (this.cursorPos < this.inputBuffer.length) {
+					this.cursorPos++;
+					this.terminal?.write("\x1b[C"); // Move cursor right
 				}
+				break;
+
+			case "\x1b[D": // Left arrow
+				if (this.cursorPos > 0) {
+					this.cursorPos--;
+					this.terminal?.write("\x1b[D"); // Move cursor left
+				}
+				break;
+
+			case "\x1b[H": // Home (some terminals)
+			case "\x01": // Ctrl+A (beginning of line)
+				if (this.cursorPos > 0) {
+					this.terminal?.write(`\x1b[${this.cursorPos}D`);
+					this.cursorPos = 0;
+				}
+				break;
+
+			case "\x1b[F": // End (some terminals)
+			case "\x05": // Ctrl+E (end of line)
+				if (this.cursorPos < this.inputBuffer.length) {
+					this.terminal?.write(`\x1b[${this.inputBuffer.length - this.cursorPos}C`);
+					this.cursorPos = this.inputBuffer.length;
+				}
+				break;
+
+			case "\t": // Tab - auto-complete
+				this.handleTabCompletion();
+				break;
+
+			default:
+				if (data >= " ") {
+					// Insert character at cursor position
+					this.inputBuffer =
+						this.inputBuffer.slice(0, this.cursorPos) +
+						data +
+						this.inputBuffer.slice(this.cursorPos);
+					this.cursorPos += data.length;
+
+					if (this.cursorPos === this.inputBuffer.length) {
+						// Cursor at end, just write the character
+						this.terminal?.write(data);
+					} else {
+						// Cursor in middle, redraw from cursor
+						this.redrawLine();
+					}
+				}
+		}
+	}
+
+	/**
+	 * Redraw the current line (used after editing in the middle)
+	 */
+	private redrawLine(): void {
+		// Move to start of input, clear to end, rewrite, reposition cursor
+		this.terminal?.write("\r\x1b[K"); // Go to start, clear line
+		this.showPrompt();
+		this.terminal?.write(this.inputBuffer);
+		// Move cursor back to correct position
+		if (this.cursorPos < this.inputBuffer.length) {
+			this.terminal?.write(`\x1b[${this.inputBuffer.length - this.cursorPos}D`);
 		}
 	}
 
@@ -407,17 +489,186 @@ export class DevConsoleView extends ItemView {
 		if (newIndex === -1) {
 			// Back to empty input
 			this.inputBuffer = "";
+			this.cursorPos = 0;
 			this.historyIndex = -1;
 		} else {
 			this.historyIndex = newIndex;
 			this.inputBuffer = this.commandHistory[this.commandHistory.length - 1 - newIndex];
+			this.cursorPos = this.inputBuffer.length;
 			this.terminal?.write(this.inputBuffer);
 		}
+	}
+
+	/**
+	 * Handle tab completion
+	 */
+	private handleTabCompletion(): void {
+		// Get the text before cursor for completion
+		const textBeforeCursor = this.inputBuffer.slice(0, this.cursorPos);
+
+		// Find what we're trying to complete
+		const match = textBeforeCursor.match(/([a-zA-Z_$][\w$]*(?:\.[\w$]*)*)\.?$/);
+		if (!match) return;
+
+		const expr = match[1];
+		const parts = expr.split(".");
+		const isPartial = !textBeforeCursor.endsWith(".");
+
+		// Get completions
+		const completions = this.getCompletions(parts, isPartial);
+		if (completions.length === 0) return;
+
+		if (completions.length === 1) {
+			// Single completion - insert it
+			const completion = completions[0];
+			const partialLen = isPartial ? parts[parts.length - 1].length : 0;
+			const toInsert = completion.slice(partialLen);
+
+			if (toInsert) {
+				this.inputBuffer =
+					this.inputBuffer.slice(0, this.cursorPos) +
+					toInsert +
+					this.inputBuffer.slice(this.cursorPos);
+				this.cursorPos += toInsert.length;
+				this.redrawLine();
+			}
+		} else {
+			// Multiple completions - show them
+			this.terminal?.write("\r\n");
+
+			// Find common prefix
+			const commonPrefix = this.findCommonPrefix(completions);
+			const partialLen = isPartial ? parts[parts.length - 1].length : 0;
+
+			// Display completions (max 20)
+			const displayCompletions = completions.slice(0, 20);
+			const cols = 4;
+			const colWidth = Math.max(...displayCompletions.map((c) => c.length)) + 2;
+
+			for (let i = 0; i < displayCompletions.length; i += cols) {
+				const row = displayCompletions.slice(i, i + cols);
+				this.terminal?.writeln(row.map((c) => c.padEnd(colWidth)).join(""));
+			}
+
+			if (completions.length > 20) {
+				this.terminal?.writeln(`\x1b[90m... and ${completions.length - 20} more\x1b[0m`);
+			}
+
+			// Insert common prefix if longer than what we have
+			if (commonPrefix.length > partialLen) {
+				const toInsert = commonPrefix.slice(partialLen);
+				this.inputBuffer =
+					this.inputBuffer.slice(0, this.cursorPos) +
+					toInsert +
+					this.inputBuffer.slice(this.cursorPos);
+				this.cursorPos += toInsert.length;
+			}
+
+			// Redraw prompt with current input
+			this.showPrompt();
+			this.terminal?.write(this.inputBuffer);
+			if (this.cursorPos < this.inputBuffer.length) {
+				this.terminal?.write(`\x1b[${this.inputBuffer.length - this.cursorPos}D`);
+			}
+		}
+	}
+
+	/**
+	 * Get completion candidates
+	 */
+	private getCompletions(parts: string[], isPartial: boolean): string[] {
+		const globals: Record<string, unknown> = {
+			app: this.app,
+			workspace: this.app.workspace,
+			vault: this.app.vault,
+			plugins: (this.app as any).plugins,
+			clear: () => {},
+			help: Object.assign(() => {}, {
+				app: () => {},
+				workspace: () => {},
+				vault: () => {},
+				plugins: () => {},
+				examples: () => {},
+			}),
+			console: console,
+			Array: Array,
+			Object: Object,
+			String: String,
+			Math: Math,
+			JSON: JSON,
+			Date: Date,
+			Promise: Promise,
+		};
+
+		try {
+			let obj: any = globals;
+
+			// Navigate to the object we're completing on
+			const navigateParts = isPartial ? parts.slice(0, -1) : parts;
+			for (const part of navigateParts) {
+				if (part === "") continue;
+				if (obj && typeof obj === "object" && part in obj) {
+					obj = obj[part];
+				} else if (part in globals) {
+					obj = globals[part];
+				} else {
+					return [];
+				}
+			}
+
+			if (obj == null) return [];
+
+			// Get all properties
+			const props = new Set<string>();
+
+			// Own properties
+			if (typeof obj === "object") {
+				Object.keys(obj).forEach((k) => props.add(k));
+			}
+
+			// Prototype chain properties
+			let proto = Object.getPrototypeOf(obj);
+			while (proto && proto !== Object.prototype) {
+				Object.getOwnPropertyNames(proto).forEach((k) => {
+					if (!k.startsWith("_")) props.add(k);
+				});
+				proto = Object.getPrototypeOf(proto);
+			}
+
+			// Filter by prefix if partial
+			let results = Array.from(props);
+			if (isPartial && parts.length > 0) {
+				const prefix = parts[parts.length - 1].toLowerCase();
+				results = results.filter((p) => p.toLowerCase().startsWith(prefix));
+			}
+
+			return results.sort();
+		} catch {
+			return [];
+		}
+	}
+
+	/**
+	 * Find common prefix among strings
+	 */
+	private findCommonPrefix(strings: string[]): string {
+		if (strings.length === 0) return "";
+		if (strings.length === 1) return strings[0];
+
+		let prefix = strings[0];
+		for (let i = 1; i < strings.length; i++) {
+			while (!strings[i].startsWith(prefix)) {
+				prefix = prefix.slice(0, -1);
+				if (prefix === "") return "";
+			}
+		}
+		return prefix;
 	}
 
 	private executeCommand(): void {
 		const command = this.inputBuffer.trim();
 		this.inputBuffer = "";
+		this.cursorPos = 0;
 		this.historyIndex = -1;
 
 		if (!command) {
