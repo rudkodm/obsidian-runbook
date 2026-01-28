@@ -150,18 +150,9 @@ export class XtermView extends ItemView {
 	 */
 	private async initFallbackSession(): Promise<void> {
 		this.usingFallback = true;
-		this.terminal?.write("[Using basic shell mode - some features may be limited]\r\n");
-		this.terminal?.write("[Interactive programs like vim/less won't work, but basic commands will]\r\n\r\n");
 
 		// Create fallback shell session
 		this.fallbackSession = new ShellSession();
-
-		// Connect shell output to terminal
-		this.fallbackSession.on("output", (data: string) => {
-			// Convert newlines for terminal display
-			const formatted = data.replace(/\n/g, "\r\n");
-			this.terminal?.write(formatted);
-		});
 
 		// Handle terminal input - collect line and execute on Enter
 		let inputBuffer = "";
@@ -171,15 +162,21 @@ export class XtermView extends ItemView {
 				this.terminal?.write("\r\n");
 				if (inputBuffer.trim()) {
 					this.executeInFallback(inputBuffer);
+				} else {
+					this.showPrompt();
 				}
 				inputBuffer = "";
-				this.showPrompt();
-			} else if (data === "\x7f") {
+			} else if (data === "\x7f" || data === "\b") {
 				// Backspace
 				if (inputBuffer.length > 0) {
 					inputBuffer = inputBuffer.slice(0, -1);
 					this.terminal?.write("\b \b");
 				}
+			} else if (data === "\x03") {
+				// Ctrl+C
+				this.terminal?.write("^C\r\n");
+				inputBuffer = "";
+				this.showPrompt();
 			} else if (data >= " " || data === "\t") {
 				// Regular character
 				inputBuffer += data;
@@ -194,7 +191,7 @@ export class XtermView extends ItemView {
 			this.showPrompt();
 		} catch (err) {
 			console.error("Runbook: Failed to spawn fallback shell:", err);
-			this.terminal?.write(`[Failed to start shell: ${err}]\r\n`);
+			this.terminal?.write(`\x1b[31m[Failed to start shell: ${err}]\x1b[0m\r\n`);
 		}
 	}
 
@@ -202,7 +199,8 @@ export class XtermView extends ItemView {
 	 * Show command prompt in fallback mode
 	 */
 	private showPrompt(): void {
-		this.terminal?.write("$ ");
+		// Green prompt for better visibility (iTerm2-like)
+		this.terminal?.write("\x1b[32m$\x1b[0m ");
 	}
 
 	/**
@@ -211,6 +209,7 @@ export class XtermView extends ItemView {
 	private async executeInFallback(command: string): Promise<void> {
 		if (!this.fallbackSession?.isAlive) {
 			this.terminal?.write("[Shell not running]\r\n");
+			this.showPrompt();
 			return;
 		}
 
@@ -220,8 +219,9 @@ export class XtermView extends ItemView {
 				this.terminal?.write(output.replace(/\n/g, "\r\n") + "\r\n");
 			}
 		} catch (err) {
-			this.terminal?.write(`[Error: ${err}]\r\n`);
+			this.terminal?.write(`\x1b[31m${err}\x1b[0m\r\n`);
 		}
+		this.showPrompt();
 	}
 
 	async onClose(): Promise<void> {
@@ -267,8 +267,8 @@ export class XtermView extends ItemView {
 			if (!this.fallbackSession?.isAlive) {
 				throw new Error("Shell session not running");
 			}
-			// Show command in terminal
-			this.terminal?.write(`$ ${command}\r\n`);
+			// Clear current line, show prompt with command, then execute
+			this.terminal?.write(`\r\x1b[K\x1b[32m$\x1b[0m ${command}\r\n`);
 			// Execute asynchronously
 			this.executeInFallback(command);
 		} else {
