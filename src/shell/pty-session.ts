@@ -102,8 +102,16 @@ export class PtySession extends EventEmitter {
 		}
 
 		// Dynamic import of node-pty (it's a native module)
-		// eslint-disable-next-line @typescript-eslint/no-var-requires
-		const nodePty = require("node-pty");
+		let nodePty;
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-var-requires
+			nodePty = require("node-pty");
+			console.log("Runbook: node-pty loaded successfully");
+		} catch (err) {
+			console.error("Runbook: Failed to load node-pty:", err);
+			throw new Error(`Failed to load node-pty: ${err}. Native modules may not be supported in this Obsidian version.`);
+		}
+
 		const spawn: SpawnFn = nodePty.spawn;
 
 		const shell = this.options.shell || PtySession.getDefaultShell();
@@ -114,18 +122,26 @@ export class PtySession extends EventEmitter {
 			args.push("-l");
 		}
 
-		this.pty = spawn(shell, args, {
-			name: "xterm-256color",
-			cols: this.options.cols ?? 80,
-			rows: this.options.rows ?? 24,
-			cwd: this.options.cwd || os.homedir(),
-			env: {
-				...process.env,
-				...this.options.env,
-			} as { [key: string]: string },
-		});
+		console.log("Runbook: Spawning PTY with shell:", shell, "args:", args);
+
+		try {
+			this.pty = spawn(shell, args, {
+				name: "xterm-256color",
+				cols: this.options.cols ?? 80,
+				rows: this.options.rows ?? 24,
+				cwd: this.options.cwd || os.homedir(),
+				env: {
+					...process.env,
+					...this.options.env,
+				} as { [key: string]: string },
+			});
+		} catch (err) {
+			console.error("Runbook: Failed to spawn PTY process:", err);
+			throw new Error(`Failed to spawn shell process: ${err}`);
+		}
 
 		this.setState("alive");
+		console.log("Runbook: PTY spawned, pid:", this.pty.pid);
 
 		// Handle data from PTY
 		const dataDisposable = this.pty.onData((data: string) => {
