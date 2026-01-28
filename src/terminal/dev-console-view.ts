@@ -113,18 +113,231 @@ export class DevConsoleView extends ItemView {
 			"\x1b[36m║\x1b[0m  \x1b[1;33mObsidian Developer Console\x1b[0m                              \x1b[36m║\x1b[0m",
 			"\x1b[36m╚══════════════════════════════════════════════════════════╝\x1b[0m",
 			"",
-			"\x1b[90mAvailable globals:\x1b[0m",
-			"  \x1b[32mapp\x1b[0m        - Obsidian App instance",
-			"  \x1b[32mworkspace\x1b[0m  - app.workspace",
-			"  \x1b[32mvault\x1b[0m      - app.vault",
-			"  \x1b[32mplugins\x1b[0m    - app.plugins",
-			"  \x1b[32mclear()\x1b[0m    - Clear console",
-			"  \x1b[32mhelp()\x1b[0m     - Show this help",
+			"Type \x1b[32mhelp()\x1b[0m for available commands and objects.",
+			"Type \x1b[32mhelp.examples()\x1b[0m for usage examples.",
 			"",
-			"\x1b[90mTips:\x1b[0m",
-			"  • Use ↑/↓ to navigate command history",
-			"  • Multi-line input: end line with \\",
-			"  • Results are logged to DevTools console too",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelp(topic?: string): void {
+		switch (topic) {
+			case "app":
+				this.showHelpApp();
+				break;
+			case "workspace":
+				this.showHelpWorkspace();
+				break;
+			case "vault":
+				this.showHelpVault();
+				break;
+			case "plugins":
+				this.showHelpPlugins();
+				break;
+			case "examples":
+				this.showHelpExamples();
+				break;
+			default:
+				this.showHelpMain();
+		}
+	}
+
+	private showHelpMain(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ Available Globals ━━━\x1b[0m",
+			"",
+			"  \x1b[32mapp\x1b[0m          Obsidian App instance (the main application)",
+			"  \x1b[32mworkspace\x1b[0m    Workspace manager (views, leaves, layout)",
+			"  \x1b[32mvault\x1b[0m        Vault API (files, folders, read/write)",
+			"  \x1b[32mplugins\x1b[0m      Plugin manager (enabled plugins, settings)",
+			"",
+			"\x1b[1;36m━━━ Helper Functions ━━━\x1b[0m",
+			"",
+			"  \x1b[32mclear()\x1b[0m      Clear the console",
+			"  \x1b[32mhelp()\x1b[0m       Show this help",
+			"  \x1b[32mhelp.app()\x1b[0m   Show app object reference",
+			"  \x1b[32mhelp.workspace()\x1b[0m  Show workspace reference",
+			"  \x1b[32mhelp.vault()\x1b[0m     Show vault reference",
+			"  \x1b[32mhelp.plugins()\x1b[0m   Show plugins reference",
+			"  \x1b[32mhelp.examples()\x1b[0m  Show usage examples",
+			"",
+			"\x1b[1;36m━━━ Keyboard Shortcuts ━━━\x1b[0m",
+			"",
+			"  \x1b[33m↑/↓\x1b[0m          Navigate command history",
+			"  \x1b[33mCtrl+C\x1b[0m       Cancel current input",
+			"  \x1b[33mCtrl+L\x1b[0m       Clear screen",
+			"",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelpApp(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ app - Obsidian App Instance ━━━\x1b[0m",
+			"",
+			"\x1b[33mProperties:\x1b[0m",
+			"  app.vault           Vault instance",
+			"  app.workspace       Workspace instance",
+			"  app.metadataCache   Metadata cache for all files",
+			"  app.fileManager     File operations manager",
+			"  app.lastOpenFiles   Recently opened files",
+			"",
+			"\x1b[33mUseful methods:\x1b[0m",
+			"  app.loadLocalStorage(key)      Load from local storage",
+			"  app.saveLocalStorage(key, val) Save to local storage",
+			"",
+			"\x1b[33mExamples:\x1b[0m",
+			"  \x1b[90m> app.vault.getName()\x1b[0m",
+			"  \x1b[90m> app.metadataCache.getCache('path/to/file.md')\x1b[0m",
+			"",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelpWorkspace(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ workspace - Workspace Manager ━━━\x1b[0m",
+			"",
+			"\x1b[33mProperties:\x1b[0m",
+			"  workspace.leftSplit       Left sidebar",
+			"  workspace.rightSplit      Right sidebar",
+			"  workspace.rootSplit       Main content area",
+			"  workspace.activeLeaf      Currently active leaf",
+			"",
+			"\x1b[33mUseful methods:\x1b[0m",
+			"  workspace.getActiveFile()         Get active file (TFile)",
+			"  workspace.getActiveViewOfType(t)  Get active view of type",
+			"  workspace.getLeavesOfType(type)   Get all leaves of type",
+			"  workspace.openLinkText(link, src) Open a link",
+			"  workspace.getLeaf(newLeaf)        Get or create leaf",
+			"  workspace.revealLeaf(leaf)        Reveal a leaf",
+			"  workspace.iterateAllLeaves(cb)    Iterate all leaves",
+			"",
+			"\x1b[33mExamples:\x1b[0m",
+			"  \x1b[90m> workspace.getActiveFile()?.path\x1b[0m",
+			"  \x1b[90m> workspace.getLeavesOfType('markdown')\x1b[0m",
+			"  \x1b[90m> workspace.activeLeaf?.view?.getViewType()\x1b[0m",
+			"",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelpVault(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ vault - Vault API ━━━\x1b[0m",
+			"",
+			"\x1b[33mProperties:\x1b[0m",
+			"  vault.adapter         File system adapter",
+			"  vault.configDir       Config directory (.obsidian)",
+			"",
+			"\x1b[33mUseful methods:\x1b[0m",
+			"  vault.getName()                  Get vault name",
+			"  vault.getRoot()                  Get root folder",
+			"  vault.getFiles()                 Get all files (TFile[])",
+			"  vault.getMarkdownFiles()         Get all markdown files",
+			"  vault.getAllLoadedFiles()        Get all loaded files",
+			"  vault.getAbstractFileByPath(p)   Get file/folder by path",
+			"  vault.read(file)                 Read file content",
+			"  vault.cachedRead(file)           Read cached content",
+			"  vault.modify(file, data)         Modify file content",
+			"  vault.create(path, data)         Create new file",
+			"  vault.createFolder(path)         Create new folder",
+			"  vault.delete(file)               Delete file",
+			"  vault.rename(file, newPath)      Rename/move file",
+			"",
+			"\x1b[33mExamples:\x1b[0m",
+			"  \x1b[90m> vault.getFiles().length\x1b[0m",
+			"  \x1b[90m> vault.getMarkdownFiles().map(f => f.basename)\x1b[0m",
+			"  \x1b[90m> await vault.read(workspace.getActiveFile())\x1b[0m",
+			"",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelpPlugins(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ plugins - Plugin Manager ━━━\x1b[0m",
+			"",
+			"\x1b[33mProperties:\x1b[0m",
+			"  plugins.manifests        All plugin manifests",
+			"  plugins.plugins          Loaded plugin instances",
+			"  plugins.enabledPlugins   Set of enabled plugin IDs",
+			"",
+			"\x1b[33mUseful methods:\x1b[0m",
+			"  plugins.getPlugin(id)           Get plugin instance by ID",
+			"  plugins.enablePlugin(id)        Enable a plugin",
+			"  plugins.disablePlugin(id)       Disable a plugin",
+			"  plugins.isEnabled(id)           Check if plugin enabled",
+			"",
+			"\x1b[33mExamples:\x1b[0m",
+			"  \x1b[90m> Array.from(plugins.enabledPlugins)\x1b[0m",
+			"  \x1b[90m> Object.keys(plugins.plugins)\x1b[0m",
+			"  \x1b[90m> plugins.getPlugin('obsidian-runbook')\x1b[0m",
+			"",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelpExamples(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ Common Examples ━━━\x1b[0m",
+			"",
+			"\x1b[33mGet current file info:\x1b[0m",
+			"  \x1b[90m> const file = workspace.getActiveFile()\x1b[0m",
+			"  \x1b[90m> file?.path\x1b[0m",
+			"  \x1b[90m> file?.stat\x1b[0m",
+			"",
+			"\x1b[33mRead file content:\x1b[0m",
+			"  \x1b[90m> await vault.read(workspace.getActiveFile())\x1b[0m",
+			"",
+			"\x1b[33mList all markdown files:\x1b[0m",
+			"  \x1b[90m> vault.getMarkdownFiles().map(f => f.path)\x1b[0m",
+			"",
+			"\x1b[33mSearch files by name:\x1b[0m",
+			"  \x1b[90m> vault.getFiles().filter(f => f.name.includes('test'))\x1b[0m",
+			"",
+			"\x1b[33mGet file metadata/frontmatter:\x1b[0m",
+			"  \x1b[90m> app.metadataCache.getFileCache(workspace.getActiveFile())\x1b[0m",
+			"",
+			"\x1b[33mGet all tags in vault:\x1b[0m",
+			"  \x1b[90m> Object.keys(app.metadataCache.getTags())\x1b[0m",
+			"",
+			"\x1b[33mOpen a file:\x1b[0m",
+			"  \x1b[90m> workspace.openLinkText('path/to/file.md', '')\x1b[0m",
+			"",
+			"\x1b[33mList enabled plugins:\x1b[0m",
+			"  \x1b[90m> Array.from(plugins.enabledPlugins)\x1b[0m",
+			"",
+			"\x1b[33mGet plugin settings:\x1b[0m",
+			"  \x1b[90m> plugins.getPlugin('plugin-id')?.settings\x1b[0m",
+			"",
+			"\x1b[33mReload a plugin:\x1b[0m",
+			"  \x1b[90m> await plugins.disablePlugin('plugin-id')\x1b[0m",
+			"  \x1b[90m> await plugins.enablePlugin('plugin-id')\x1b[0m",
 			"",
 		];
 
@@ -229,7 +442,15 @@ export class DevConsoleView extends ItemView {
 		}
 
 		if (command === "help()" || command === "help") {
-			this.showWelcome();
+			this.showHelp();
+			this.showPrompt();
+			return;
+		}
+
+		// Handle help.xxx() commands
+		const helpMatch = command.match(/^help\.(\w+)\(\)$/);
+		if (helpMatch) {
+			this.showHelp(helpMatch[1]);
 			this.showPrompt();
 			return;
 		}
@@ -256,9 +477,30 @@ export class DevConsoleView extends ItemView {
 		const clear = () => {
 			this.terminal?.clear();
 		};
-		const help = () => {
-			this.showWelcome();
-		};
+
+		// Create help function with sub-functions
+		const help = Object.assign(
+			() => {
+				this.showHelp();
+			},
+			{
+				app: () => {
+					this.showHelp("app");
+				},
+				workspace: () => {
+					this.showHelp("workspace");
+				},
+				vault: () => {
+					this.showHelp("vault");
+				},
+				plugins: () => {
+					this.showHelp("plugins");
+				},
+				examples: () => {
+					this.showHelp("examples");
+				},
+			}
+		);
 
 		// Use Function constructor to create a function with the context
 		// This is intentionally using eval-like behavior for the dev console
