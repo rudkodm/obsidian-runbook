@@ -7,6 +7,16 @@ import { ShellSession } from "../shell/session";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
 
+/** ANSI escape codes for terminal output formatting */
+const ANSI = {
+	RESET: "\x1b[0m",
+	RED: "\x1b[31m",
+	GREEN: "\x1b[32m",
+	YELLOW: "\x1b[33m",
+	GRAY: "\x1b[90m",
+	CLEAR_LINE: "\x1b[K",
+} as const;
+
 /** Terminal session state */
 export type TerminalState = "starting" | "running" | "exited" | "error";
 
@@ -225,7 +235,7 @@ export class XtermView extends ItemView {
 			this.showPrompt();
 		} catch (err) {
 			console.error("Runbook: Failed to spawn fallback shell:", err);
-			this.terminal?.write(`\x1b[31m[Failed to start shell: ${err}]\x1b[0m\r\n`);
+			this.terminal?.write(`${ANSI.RED}[Failed to start shell: ${err}]${ANSI.RESET}\r\n`);
 			this.setState("error");
 		}
 	}
@@ -235,10 +245,10 @@ export class XtermView extends ItemView {
 	 */
 	private handleSessionExit(code: number): void {
 		this.setState("exited");
-		this.terminal?.write(`\r\n\x1b[33m[Process exited with code ${code}]\x1b[0m\r\n`);
+		this.terminal?.write(`\r\n${ANSI.YELLOW}[Process exited with code ${code}]${ANSI.RESET}\r\n`);
 
 		if (this.autoRestart) {
-			this.terminal?.write("\x1b[90mRestarting shell...\x1b[0m\r\n");
+			this.terminal?.write(`${ANSI.GRAY}Restarting shell...${ANSI.RESET}\r\n`);
 			// Small delay before restart
 			setTimeout(() => {
 				if (this._state === "exited") {
@@ -246,7 +256,7 @@ export class XtermView extends ItemView {
 				}
 			}, 500);
 		} else {
-			this.terminal?.write("\x1b[90mPress Enter to restart shell\x1b[0m\r\n");
+			this.terminal?.write(`${ANSI.GRAY}Press Enter to restart shell${ANSI.RESET}\r\n`);
 			this.setupRestartOnEnter();
 		}
 	}
@@ -256,10 +266,10 @@ export class XtermView extends ItemView {
 	 */
 	private handleSessionError(err: Error): void {
 		this.setState("error");
-		this.terminal?.write(`\r\n\x1b[31m[Shell error: ${err.message}]\x1b[0m\r\n`);
+		this.terminal?.write(`\r\n${ANSI.RED}[Shell error: ${err.message}]${ANSI.RESET}\r\n`);
 		new Notice(`Terminal error: ${err.message}`);
 
-		this.terminal?.write("\x1b[90mPress Enter to restart shell\x1b[0m\r\n");
+		this.terminal?.write(`${ANSI.GRAY}Press Enter to restart shell${ANSI.RESET}\r\n`);
 		this.setupRestartOnEnter();
 	}
 
@@ -293,7 +303,7 @@ export class XtermView extends ItemView {
 	 * Show command prompt in fallback mode
 	 */
 	private showPrompt(): void {
-		this.terminal?.write("\x1b[32m$\x1b[0m ");
+		this.terminal?.write(`${ANSI.GREEN}$${ANSI.RESET} `);
 	}
 
 	/**
@@ -312,7 +322,7 @@ export class XtermView extends ItemView {
 				this.terminal?.write(output.replace(/\n/g, "\r\n") + "\r\n");
 			}
 		} catch (err) {
-			this.terminal?.write(`\x1b[31m${err}\x1b[0m\r\n`);
+			this.terminal?.write(`${ANSI.RED}${err}${ANSI.RESET}\r\n`);
 		}
 		this.showPrompt();
 	}
@@ -414,7 +424,7 @@ export class XtermView extends ItemView {
 				throw new Error("Shell session not running");
 			}
 			// Clear current line, show prompt with command, then execute
-			this.terminal?.write(`\r\x1b[K\x1b[32m$\x1b[0m ${command}\r\n`);
+			this.terminal?.write(`\r${ANSI.CLEAR_LINE}${ANSI.GREEN}$${ANSI.RESET} ${command}\r\n`);
 			this.executeInFallback(command);
 		} else {
 			// PTY mode - write directly
