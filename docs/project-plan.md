@@ -293,107 +293,80 @@ All validation tests passed:
 
 ---
 
-## Phase 8: Settings & Configuration ⚠️ IN PROGRESS
+## Phase 8: Settings & Configuration
 
 ### 8.1 Plugin Settings Tab
-- [ ] Default shell override
-- [ ] Auto-advance cursor toggle
-- [ ] Strip prompt prefixes toggle ($ and >)
+- [ ] Create settings tab UI
+- [ ] Default shell override setting
+- [ ] Auto-advance cursor toggle (currently always on)
+- [ ] Strip prompt prefixes toggle (currently always on)
 - [ ] Auto-open terminal on plugin load toggle
-- [ ] Default terminal count on startup
 
-### 8.2 Frontmatter Support (Future)
-- [ ] Parse note frontmatter for overrides
-- [ ] Support `shell` property to override default
-
-### 8.3 Verification Criteria
+### 8.2 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
 | Settings tab | All options visible and functional |
 | Shell override | Uses configured shell |
-| Auto-advance | Respects setting |
+| Toggles | Each toggle affects behavior correctly |
 
 ---
 
-## Phase 9: UI Polish
+## Phase 9: Documentation & Polish
 
-### 9.1 Code Block UI
-- [ ] Finalize execute button styling
-- [ ] Consistent button positioning
-- [ ] Hover states and transitions
+**Note:** UI already uses Obsidian CSS variables for theme compatibility.
 
-### 9.2 Output Container UI
-- [ ] Clean visual design
-- [ ] Proper spacing and borders
-- [ ] Smooth expand/collapse animations
+### 9.1 README Documentation
+- [ ] Feature overview with screenshots/GIFs
+- [ ] Installation instructions (manual + community)
+- [ ] Quick start guide
+- [ ] Command reference
+- [ ] Troubleshooting section
 
-### 9.3 Terminal UI
-- [ ] Professional terminal appearance
-- [ ] Tab bar styling
-- [ ] Input field styling
-- [ ] Scrollbar styling
+### 9.2 Minor UI Polish (if needed)
+- [ ] Review execute button appearance
+- [ ] Review output container styling
+- [ ] Test with popular themes
 
-### 9.4 Theme Compatibility
-- [ ] Light theme support
-- [ ] Dark theme support
-- [ ] Custom theme compatibility
-- [ ] High contrast accessibility
-
-### 9.5 Verification Criteria
+### 9.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Light theme | All UI elements visible and styled |
-| Dark theme | All UI elements visible and styled |
-| Animations | Smooth, non-jarring transitions |
+| README | New user can install and use from docs alone |
+| Themes | Works with default light/dark themes |
 
 ---
 
-## Phase 10: Documentation
+## Phase 10: Packaging & Release
 
-### 10.1 Documentation
-- [ ] User guide (README.md)
-- [ ] Installation instructions
-- [ ] Configuration reference
-- [ ] Troubleshooting guide
+### 10.1 GitHub Actions
+- [ ] Create release workflow
+- [ ] Auto-generate plugin zip on tag
+- [ ] Version bump automation
 
-### 10.2 Verification Criteria
-
-| Test | Pass Condition |
-|------|----------------|
-| README | Clear install steps |
-| New user | Can install and use from docs alone |
-
----
-
-## Phase 11: Packaging & Distribution
-
-### 11.1 Plugin Packaging
-- [ ] Create release workflow (GitHub Actions)
-- [ ] Generate plugin zip for manual install
-- [ ] Version management
-
-### 11.2 Community Release
+### 10.2 Community Release
 - [ ] Submit to Obsidian community plugins
-- [ ] Create demo video/GIF
+- [ ] Create demo GIF for README
 
-### 11.3 Verification Criteria
+### 10.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| GitHub Action | Builds and creates release |
-| Manual install | Plugin zip works |
+| Release workflow | Creates valid plugin zip |
+| Manual install | Plugin zip works in Obsidian |
 
 ---
 
 ## Implementation Order
 
 ```
-Phase 0-5 ✅ → Phase 6 ✅ → Phase 6b ✅ → Phase 7 ✅ → Phase 8 → Phase 9-10 → Phase 11
-              (xterm.js)   (Dev Console)   (Lifecycle)     ▲
-                                                       YOU ARE HERE
+Phase 0-7 ✅ → Phase 8 → Phase 9 → Phase 10
+(Core done)   (Settings)  (Docs)   (Release)
+                  ▲
+              YOU ARE HERE
 ```
+
+**Simplified:** Phases 9-11 consolidated into 9-10 (Docs/Polish and Release).
 
 ---
 
@@ -430,12 +403,8 @@ obsidian-runbook/
 │   ├── editor/
 │   │   └── code-block.ts
 │   ├── terminal/
-│   │   ├── index.ts
-│   │   ├── terminal-manager.ts
-│   │   ├── terminal-view.ts        # Basic terminal (legacy)
 │   │   ├── xterm-view.ts           # xterm.js terminal
-│   │   ├── xterm-styles.ts
-│   │   ├── terminal-styles.ts
+│   │   ├── xterm-styles.ts         # Terminal CSS styles
 │   │   └── dev-console-view.ts     # Developer console
 │   └── ui/
 │       ├── code-block-processor.ts
@@ -445,8 +414,6 @@ obsidian-runbook/
 │   │   └── session.test.ts
 │   ├── editor/
 │   │   └── code-block.test.ts
-│   ├── terminal/
-│   │   └── terminal-manager.test.ts
 │   └── ui/
 │       └── output-container.test.ts
 ├── manifest.json
