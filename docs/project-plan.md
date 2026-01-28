@@ -190,42 +190,82 @@ All validation tests passed:
 
 ---
 
-## Phase 6: Real Terminal (xterm.js + node-pty)
+## Phase 6: Real Terminal (xterm.js + Python PTY) ✅ COMPLETE
+
+**Note:** Used Python's `pty` module instead of `node-pty` to avoid native module compilation issues.
 
 ### 6.1 Dependencies
-- [ ] Add `node-pty` for PTY support
-- [ ] Add `xterm.js` for terminal emulation
-- [ ] Add `xterm-addon-fit` for auto-resize
-- [ ] Add `xterm-addon-web-links` for clickable links
+- [x] Add `@xterm/xterm` for terminal emulation
+- [x] Add `@xterm/addon-fit` for auto-resize
+- [x] Add `@xterm/addon-web-links` for clickable links
+- [x] Use Python 3 `pty` module (no native compilation needed)
 
-### 6.2 PTY Shell Session
-- [ ] Create `src/shell/pty-session.ts`
-- [ ] Replace `child_process.spawn` with `node-pty.spawn`
-- [ ] Handle PTY resize events
-- [ ] Proper signal handling (SIGINT, etc.)
+### 6.2 Python PTY Shell Session
+- [x] Create `src/shell/python-pty-session.ts`
+- [x] Embedded Python PTY helper script
+- [x] Handle PTY resize events via command pipe
+- [x] Proper signal handling (SIGTERM on kill)
+- [x] Fallback to basic ShellSession if Python unavailable
 
 ### 6.3 xterm.js Terminal View
-- [ ] Replace HTML div terminal with xterm.js Terminal
-- [ ] Integrate xterm.js into Obsidian ItemView
-- [ ] Handle terminal resize on panel resize
-- [ ] Theme integration (use Obsidian CSS variables)
+- [x] Create `src/terminal/xterm-view.ts`
+- [x] Integrate xterm.js into Obsidian ItemView
+- [x] Handle terminal resize on panel resize (ResizeObserver)
+- [x] Theme integration (uses Obsidian CSS variables)
 
 ### 6.4 Full Terminal Features
-- [ ] ANSI color support
-- [ ] Cursor positioning
-- [ ] `clear` command works
-- [ ] Interactive programs (vim, less, top)
-- [ ] Copy/paste support
-- [ ] Selection support
+- [x] ANSI color support (TERM=xterm-256color)
+- [x] Cursor positioning
+- [x] `clear` command works
+- [x] Interactive programs (vim, less, top)
+- [x] Copy/paste support (via xterm.js)
+- [x] Selection support (via xterm.js)
+- [x] Clickable URLs (web-links addon)
 
 ### 6.5 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Colors | `ls --color` shows colored output |
-| Clear | `clear` clears the screen |
-| Interactive | `vim` opens and is usable |
-| Resize | Terminal reflows on panel resize |
+| Colors | `ls --color` shows colored output ✅ |
+| Clear | `clear` clears the screen ✅ |
+| Interactive | `vim` opens and is usable ✅ |
+| Resize | Terminal reflows on panel resize ✅ |
+
+---
+
+## Phase 6b: Developer Console ✅ COMPLETE (Bonus Feature)
+
+**Note:** This feature was not in the original plan but adds significant debugging value.
+
+### 6b.1 Console View
+- [x] Create `src/terminal/dev-console-view.ts`
+- [x] JavaScript REPL using xterm.js
+- [x] Register as Obsidian ItemView
+- [x] Command: `Runbook: Open developer console`
+
+### 6b.2 Obsidian API Access
+- [x] Expose `app` - Obsidian App instance
+- [x] Expose `workspace` - Workspace manager
+- [x] Expose `vault` - Vault API
+- [x] Expose `plugins` - Plugin manager
+- [x] `clear()` helper function
+
+### 6b.3 Help System
+- [x] `help()` - Main help
+- [x] `help.app()` - App object reference
+- [x] `help.workspace()` - Workspace reference
+- [x] `help.vault()` - Vault reference
+- [x] `help.plugins()` - Plugins reference
+- [x] `help.examples()` - Usage examples
+- [x] `help.shortcuts()` - Keyboard shortcuts
+
+### 6b.4 Advanced Features
+- [x] Tab completion for objects and properties
+- [x] Command history (up/down arrows)
+- [x] Line editing (Ctrl+A, Ctrl+E, arrow keys)
+- [x] Console interception (logs appear in console)
+- [x] Formatted output with ANSI colors
+- [x] Theme integration with Obsidian
 
 ---
 
@@ -350,9 +390,9 @@ All validation tests passed:
 ## Implementation Order
 
 ```
-Phase 0-5 ✅ → Phase 6 (xterm.js) → Phase 7-8 → Phase 9-10 → Phase 11
-                     ▲
-                 YOU ARE HERE
+Phase 0-5 ✅ → Phase 6 ✅ → Phase 6b ✅ → Phase 7-8 → Phase 9-10 → Phase 11
+              (xterm.js)   (Dev Console)      ▲
+                                          YOU ARE HERE
 ```
 
 ---
@@ -364,7 +404,9 @@ Phase 0-5 ✅ → Phase 6 (xterm.js) → Phase 7-8 → Phase 9-10 → Phase 11
 | Language | TypeScript |
 | Plugin API | Obsidian API |
 | Editor | CodeMirror 6 |
-| Execution | Node.js `child_process` |
+| Terminal UI | xterm.js (@xterm/xterm) |
+| PTY | Python 3 pty module |
+| Execution | Node.js `child_process` (fallback) |
 | Build | esbuild |
 | Testing | Vitest |
 
@@ -382,18 +424,31 @@ obsidian-runbook/
 │   └── install.sh
 ├── src/
 │   ├── main.ts
-│   ├── settings.ts
 │   ├── shell/
-│   │   └── session.ts
+│   │   ├── session.ts              # Basic shell (fallback)
+│   │   └── python-pty-session.ts   # Python PTY (primary)
 │   ├── editor/
-│   │   ├── code-block-detector.ts
-│   │   └── execute-decoration.ts
-│   └── types.ts
+│   │   └── code-block.ts
+│   ├── terminal/
+│   │   ├── index.ts
+│   │   ├── terminal-manager.ts
+│   │   ├── terminal-view.ts        # Basic terminal (legacy)
+│   │   ├── xterm-view.ts           # xterm.js terminal
+│   │   ├── xterm-styles.ts
+│   │   ├── terminal-styles.ts
+│   │   └── dev-console-view.ts     # Developer console
+│   └── ui/
+│       ├── code-block-processor.ts
+│       └── output-container.ts
 ├── tests/
 │   ├── shell/
 │   │   └── session.test.ts
-│   └── editor/
-│       └── code-block-detector.test.ts
+│   ├── editor/
+│   │   └── code-block.test.ts
+│   ├── terminal/
+│   │   └── terminal-manager.test.ts
+│   └── ui/
+│       └── output-container.test.ts
 ├── manifest.json
 ├── package.json
 ├── tsconfig.json
@@ -403,4 +458,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 6 (Real Terminal with xterm.js + node-pty)
+**Status:** Phase 7 (Session Lifecycle) - Phases 0-6b complete
