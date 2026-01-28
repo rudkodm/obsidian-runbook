@@ -141,6 +141,9 @@ export class DevConsoleView extends ItemView {
 			case "examples":
 				this.showHelpExamples();
 				break;
+			case "shortcuts":
+				this.showHelpShortcuts();
+				break;
 			default:
 				this.showHelpMain();
 		}
@@ -165,16 +168,7 @@ export class DevConsoleView extends ItemView {
 			"  \x1b[32mhelp.vault()\x1b[0m     Show vault reference",
 			"  \x1b[32mhelp.plugins()\x1b[0m   Show plugins reference",
 			"  \x1b[32mhelp.examples()\x1b[0m  Show usage examples",
-			"",
-			"\x1b[1;36m━━━ Keyboard Shortcuts ━━━\x1b[0m",
-			"",
-			"  \x1b[33m↑/↓\x1b[0m          Navigate command history",
-			"  \x1b[33m←/→\x1b[0m          Move cursor left/right",
-			"  \x1b[33mCtrl+A\x1b[0m       Jump to beginning of line",
-			"  \x1b[33mCtrl+E\x1b[0m       Jump to end of line",
-			"  \x1b[33mTab\x1b[0m          Auto-complete",
-			"  \x1b[33mCtrl+C\x1b[0m       Cancel current input",
-			"  \x1b[33mCtrl+L\x1b[0m       Clear screen",
+			"  \x1b[32mhelp.shortcuts()\x1b[0m Show keyboard shortcuts",
 			"",
 		];
 
@@ -343,6 +337,36 @@ export class DevConsoleView extends ItemView {
 			"\x1b[33mReload a plugin:\x1b[0m",
 			"  \x1b[90m> await plugins.disablePlugin('plugin-id')\x1b[0m",
 			"  \x1b[90m> await plugins.enablePlugin('plugin-id')\x1b[0m",
+			"",
+		];
+
+		for (const line of lines) {
+			this.terminal?.writeln(line);
+		}
+	}
+
+	private showHelpShortcuts(): void {
+		const lines = [
+			"",
+			"\x1b[1;36m━━━ Keyboard Shortcuts ━━━\x1b[0m",
+			"",
+			"\x1b[33mNavigation:\x1b[0m",
+			"  ↑            Previous command in history",
+			"  ↓            Next command in history",
+			"  ←            Move cursor left",
+			"  →            Move cursor right",
+			"  Ctrl+A       Jump to beginning of line",
+			"  Ctrl+E       Jump to end of line",
+			"",
+			"\x1b[33mEditing:\x1b[0m",
+			"  Backspace    Delete character before cursor",
+			"  Delete       Delete character at cursor",
+			"  Tab          Auto-complete",
+			"",
+			"\x1b[33mControl:\x1b[0m",
+			"  Enter        Execute command",
+			"  Ctrl+C       Cancel current input",
+			"  Ctrl+L       Clear screen",
 			"",
 		];
 
@@ -593,6 +617,7 @@ export class DevConsoleView extends ItemView {
 				vault: () => {},
 				plugins: () => {},
 				examples: () => {},
+				shortcuts: () => {},
 			}),
 			console: console,
 			Array: Array,
@@ -753,6 +778,9 @@ export class DevConsoleView extends ItemView {
 				},
 				examples: () => {
 					this.showHelp("examples");
+				},
+				shortcuts: () => {
+					this.showHelp("shortcuts");
 				},
 			}
 		);
