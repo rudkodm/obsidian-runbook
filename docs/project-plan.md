@@ -293,16 +293,58 @@ All validation tests passed:
 
 ---
 
-## Phase 8: Settings & Configuration
+## Phase 8: Runbook Features ⚠️ IN PROGRESS
 
-### 8.1 Plugin Settings Tab
+**Core features to make this a true "Runbook" tool.**
+
+### 8.1 Ribbon Button
+- [ ] Add ribbon icon to open terminal
+- [ ] Use terminal icon from Obsidian icon set
+
+### 8.2 Multi-Language Support
+- [ ] Python code block execution (`python`, `py`)
+- [ ] JavaScript/Node code block execution (`javascript`, `js`)
+- [ ] Update `isLanguageSupported()` to include new languages
+- [ ] Route to appropriate interpreter based on language
+
+### 8.3 Session Isolation per Note (Runbook Concept)
+- [ ] Each note gets its own terminal session
+- [ ] Track note file path → terminal session mapping
+- [ ] Auto-create session when executing from a note
+- [ ] Clean up session when note is closed
+- [ ] Visual indicator showing which note a terminal belongs to
+
+### 8.4 Run All Cells (Execute Runbook)
+- [ ] Add "Run All" button in reading view (top of document)
+- [ ] Execute all code blocks sequentially
+- [ ] Show progress indicator
+- [ ] Stop on error option
+- [ ] Visual feedback for completed/failed blocks
+
+### 8.5 Verification Criteria
+
+| Test | Pass Condition |
+|------|----------------|
+| Ribbon | Click opens terminal |
+| Python | Python code blocks execute correctly |
+| JavaScript | JS code blocks execute correctly |
+| Isolation | Two notes run independently |
+| Run All | Executes all blocks in order |
+
+---
+
+## Phase 9: Settings & Configuration
+
+### 9.1 Plugin Settings Tab
 - [ ] Create settings tab UI
 - [ ] Default shell override setting
 - [ ] Auto-advance cursor toggle (currently always on)
 - [ ] Strip prompt prefixes toggle (currently always on)
 - [ ] Auto-open terminal on plugin load toggle
+- [ ] Default Python interpreter path
+- [ ] Default Node.js interpreter path
 
-### 8.2 Verification Criteria
+### 9.2 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -312,23 +354,23 @@ All validation tests passed:
 
 ---
 
-## Phase 9: Documentation & Polish
+## Phase 10: Documentation & Polish
 
 **Note:** UI already uses Obsidian CSS variables for theme compatibility.
 
-### 9.1 README Documentation
+### 10.1 README Documentation
 - [ ] Feature overview with screenshots/GIFs
 - [ ] Installation instructions (manual + community)
 - [ ] Quick start guide
 - [ ] Command reference
 - [ ] Troubleshooting section
 
-### 9.2 Minor UI Polish (if needed)
+### 10.2 Minor UI Polish (if needed)
 - [ ] Review execute button appearance
 - [ ] Review output container styling
 - [ ] Test with popular themes
 
-### 9.3 Verification Criteria
+### 10.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -337,18 +379,18 @@ All validation tests passed:
 
 ---
 
-## Phase 10: Packaging & Release
+## Phase 11: Packaging & Release
 
-### 10.1 GitHub Actions
+### 11.1 GitHub Actions
 - [ ] Create release workflow
 - [ ] Auto-generate plugin zip on tag
 - [ ] Version bump automation
 
-### 10.2 Community Release
+### 11.2 Community Release
 - [ ] Submit to Obsidian community plugins
 - [ ] Create demo GIF for README
 
-### 10.3 Verification Criteria
+### 11.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
@@ -360,13 +402,11 @@ All validation tests passed:
 ## Implementation Order
 
 ```
-Phase 0-7 ✅ → Phase 8 → Phase 9 → Phase 10
-(Core done)   (Settings)  (Docs)   (Release)
+Phase 0-7 ✅ → Phase 8 → Phase 9 → Phase 10 → Phase 11
+(Core done)   (Runbook)  (Settings) (Docs)    (Release)
                   ▲
               YOU ARE HERE
 ```
-
-**Simplified:** Phases 9-11 consolidated into 9-10 (Docs/Polish and Release).
 
 ---
 
@@ -425,4 +465,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 8 (Settings & Configuration) - Phases 0-7 complete
+**Status:** Phase 8 (Runbook Features) - Phases 0-7 complete
