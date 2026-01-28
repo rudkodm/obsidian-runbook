@@ -105,6 +105,8 @@ def main():
                                     try:
                                         cols, rows = line.strip().split('x')
                                         set_winsize(pty_fd, int(cols), int(rows))
+                                        # Send SIGWINCH to notify child of resize
+                                        os.kill(pid, signal.SIGWINCH)
                                     except (ValueError, OSError):
                                         pass
                     except OSError:
