@@ -8,6 +8,7 @@ import {
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
 import { XtermView, XTERM_VIEW_TYPE } from "./terminal/xterm-view";
+import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
 import { XTERM_STYLES } from "./terminal/xterm-styles";
 
 /**
@@ -40,6 +41,11 @@ export default class RunbookPlugin extends Plugin {
 			return new XtermView(leaf);
 		});
 
+		// Register developer console view
+		this.registerView(DEV_CONSOLE_VIEW_TYPE, (leaf) => {
+			return new DevConsoleView(leaf);
+		});
+
 		// Main command: Execute line or selection (Shift + Cmd/Ctrl + Enter)
 		this.addCommand({
 			id: "execute-line-or-selection",
@@ -68,6 +74,12 @@ export default class RunbookPlugin extends Plugin {
 			callback: () => this.createNewTerminal(),
 		});
 
+		this.addCommand({
+			id: "open-dev-console",
+			name: "Open developer console",
+			callback: () => this.openDevConsole(),
+		});
+
 		// Register code block post-processor for reading view
 		this.registerMarkdownPostProcessor(
 			createCodeBlockProcessor({
@@ -93,6 +105,7 @@ export default class RunbookPlugin extends Plugin {
 		}
 		// Detach terminal leaves (this will trigger onClose which kills PTY)
 		this.app.workspace.detachLeavesOfType(XTERM_VIEW_TYPE);
+		this.app.workspace.detachLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
 	}
 
 	/**
@@ -222,6 +235,41 @@ export default class RunbookPlugin extends Plugin {
 
 			// Focus the terminal
 			const view = leaf.view as XtermView;
+			if (view && view.focus) {
+				setTimeout(() => view.focus(), 100);
+			}
+		}
+	}
+
+	/**
+	 * Open developer console (for debugging Obsidian)
+	 */
+	private async openDevConsole(): Promise<void> {
+		const { workspace } = this.app;
+
+		// Check if already open
+		const existing = workspace.getLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
+		if (existing.length > 0) {
+			// Focus existing console
+			workspace.revealLeaf(existing[0]);
+			const view = existing[0].view as DevConsoleView;
+			if (view && view.focus) {
+				view.focus();
+			}
+			return;
+		}
+
+		// Create new dev console in right sidebar or split
+		const leaf = workspace.getLeaf("split", "vertical");
+		if (leaf) {
+			await leaf.setViewState({
+				type: DEV_CONSOLE_VIEW_TYPE,
+				active: true,
+			});
+			workspace.revealLeaf(leaf);
+
+			// Focus the console
+			const view = leaf.view as DevConsoleView;
 			if (view && view.focus) {
 				setTimeout(() => view.focus(), 100);
 			}
