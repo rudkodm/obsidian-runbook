@@ -44,6 +44,11 @@ export class XtermView extends ItemView {
 	private _state: TerminalState = "starting";
 	private autoRestart: boolean = true;
 
+	// Resize tracking
+	private lastCols: number = 0;
+	private lastRows: number = 0;
+	private resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+
 	// Terminal identification
 	private static nextId = 1;
 	readonly terminalId: number;
@@ -102,9 +107,9 @@ export class XtermView extends ItemView {
 		// Start the shell session
 		await this.startSession();
 
-		// Handle resize
+		// Handle resize with debouncing
 		this.resizeObserver = new ResizeObserver(() => {
-			this.fit();
+			this.debouncedFit();
 		});
 		this.resizeObserver.observe(this.terminalEl);
 
@@ -316,6 +321,12 @@ export class XtermView extends ItemView {
 		// Disable auto-restart during close
 		this.autoRestart = false;
 
+		// Clean up timers
+		if (this.resizeTimeout) {
+			clearTimeout(this.resizeTimeout);
+			this.resizeTimeout = null;
+		}
+
 		// Clean up
 		this.resizeObserver?.disconnect();
 		this.ptySession?.kill();
@@ -333,14 +344,48 @@ export class XtermView extends ItemView {
 	}
 
 	/**
-	 * Fit terminal to container
+	 * Debounced fit - waits for resize to settle before updating PTY
+	 */
+	private debouncedFit(): void {
+		if (this.resizeTimeout) {
+			clearTimeout(this.resizeTimeout);
+		}
+		// Immediately fit xterm (visual update)
+		this.fitAddon?.fit();
+
+		// Debounce the PTY resize to avoid flooding
+		this.resizeTimeout = setTimeout(() => {
+			this.resizeTimeout = null;
+			this.syncPtySize();
+		}, 100);
+	}
+
+	/**
+	 * Fit terminal to container (immediate)
 	 */
 	fit(): void {
 		if (this.fitAddon && this.terminal) {
 			this.fitAddon.fit();
-			// Only resize PTY if using PTY mode and session is alive
+			this.syncPtySize();
+		}
+	}
+
+	/**
+	 * Sync PTY size with terminal dimensions (only if changed)
+	 */
+	private syncPtySize(): void {
+		if (!this.terminal) return;
+
+		const cols = this.terminal.cols;
+		const rows = this.terminal.rows;
+
+		// Only resize if dimensions actually changed
+		if (cols !== this.lastCols || rows !== this.lastRows) {
+			this.lastCols = cols;
+			this.lastRows = rows;
+
 			if (this.ptySession?.isAlive && !this.usingFallback) {
-				this.ptySession.resize(this.terminal.cols, this.terminal.rows);
+				this.ptySession.resize(cols, rows);
 			}
 		}
 	}
