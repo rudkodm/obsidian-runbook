@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Notice, Platform, Plugin, PluginManifest, WorkspaceLeaf } from "obsidian";
+import { Editor, Notice, Platform, Plugin } from "obsidian";
 import {
 	getCodeBlockContext,
 	getTextToExecute,
@@ -7,7 +7,7 @@ import {
 	stripPromptPrefix,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
-import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange, TerminalState } from "./terminal/xterm-view";
+import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xterm-view";
 import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
 import { XTERM_STYLES, XTERM_LIB_CSS } from "./terminal/xterm-styles";
 
@@ -20,10 +20,6 @@ export default class RunbookPlugin extends Plugin {
 	private styleEl: HTMLStyleElement | null = null;
 	private statusBarEl: HTMLElement | null = null;
 	private unsubscribeStateChange: (() => void) | null = null;
-
-	constructor(app: App, manifest: PluginManifest) {
-		super(app, manifest);
-	}
 
 	async onload() {
 		// Desktop-only check

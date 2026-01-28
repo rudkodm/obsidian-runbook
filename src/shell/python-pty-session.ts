@@ -1,7 +1,6 @@
 import { spawn, ChildProcess, execSync } from "child_process";
 import { EventEmitter } from "events";
 import * as os from "os";
-import * as path from "path";
 import * as fs from "fs";
 
 export type PythonPtyState = "idle" | "alive" | "dead";
