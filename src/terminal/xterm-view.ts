@@ -2,39 +2,22 @@ import { ItemView, WorkspaceLeaf } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { PtySession } from "../shell/pty-session";
+import { ScriptPtySession } from "../shell/script-pty-session";
 import { ShellSession } from "../shell/session";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
 
-// Flag to track if node-pty is available
-let nodePtyAvailable: boolean | null = null;
-
-/**
- * Check if node-pty is available
- */
-function checkNodePtyAvailable(): boolean {
-	if (nodePtyAvailable !== null) {
-		return nodePtyAvailable;
-	}
-	try {
-		require("node-pty");
-		nodePtyAvailable = true;
-		console.log("Runbook: node-pty is available");
-	} catch (err) {
-		nodePtyAvailable = false;
-		console.warn("Runbook: node-pty not available, using fallback shell:", err);
-	}
-	return nodePtyAvailable;
-}
-
 /**
  * Terminal view using xterm.js with PTY support (or fallback to basic shell)
+ *
+ * PTY modes:
+ * 1. ScriptPtySession - Uses Unix `script` command (macOS/Linux)
+ * 2. ShellSession fallback - Basic shell without PTY (Windows or if script unavailable)
  */
 export class XtermView extends ItemView {
 	private terminal: Terminal | null = null;
 	private fitAddon: FitAddon | null = null;
-	private ptySession: PtySession | null = null;
+	private scriptPtySession: ScriptPtySession | null = null;
 	private fallbackSession: ShellSession | null = null;
 	private terminalEl: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
@@ -90,10 +73,11 @@ export class XtermView extends ItemView {
 		// Initial fit
 		this.fitAddon.fit();
 
-		// Check if node-pty is available and use appropriate session
-		if (checkNodePtyAvailable()) {
-			await this.initPtySession();
+		// Check if script-based PTY is available (Unix) or use fallback (Windows)
+		if (ScriptPtySession.isAvailable()) {
+			await this.initScriptPtySession();
 		} else {
+			console.log("Runbook: Script PTY not available on this platform, using fallback");
 			await this.initFallbackSession();
 		}
 
@@ -108,39 +92,39 @@ export class XtermView extends ItemView {
 	}
 
 	/**
-	 * Initialize PTY session (full terminal with node-pty)
+	 * Initialize PTY session using Unix `script` command
 	 */
-	private async initPtySession(): Promise<void> {
+	private async initScriptPtySession(): Promise<void> {
 		this.usingFallback = false;
 
-		// Create PTY session
-		this.ptySession = new PtySession({
+		// Create script-based PTY session
+		this.scriptPtySession = new ScriptPtySession({
 			cols: this.terminal!.cols,
 			rows: this.terminal!.rows,
 		});
 
 		// Connect PTY output to terminal
-		this.ptySession.on("data", (data: string) => {
+		this.scriptPtySession.on("data", (data: string) => {
 			this.terminal?.write(data);
 		});
 
 		// Connect terminal input to PTY
 		this.terminal!.onData((data: string) => {
-			this.ptySession?.write(data);
+			this.scriptPtySession?.write(data);
 		});
 
 		// Handle PTY exit
-		this.ptySession.on("exit", (code: number) => {
+		this.scriptPtySession.on("exit", (code: number) => {
 			this.terminal?.write(`\r\n[Process exited with code ${code}]\r\n`);
 		});
 
 		// Start PTY
 		try {
-			this.ptySession.spawn();
-			console.log("Runbook: PTY spawned successfully, pid:", this.ptySession.pid);
+			this.scriptPtySession.spawn();
+			console.log("Runbook: Script PTY spawned successfully, pid:", this.scriptPtySession.pid);
 		} catch (err) {
-			console.error("Runbook: Failed to spawn PTY, falling back:", err);
-			this.ptySession = null;
+			console.error("Runbook: Failed to spawn script PTY, falling back:", err);
+			this.scriptPtySession = null;
 			await this.initFallbackSession();
 		}
 	}
@@ -227,12 +211,12 @@ export class XtermView extends ItemView {
 	async onClose(): Promise<void> {
 		// Clean up
 		this.resizeObserver?.disconnect();
-		this.ptySession?.kill();
+		this.scriptPtySession?.kill();
 		this.fallbackSession?.kill();
 		this.terminal?.dispose();
 
 		this.resizeObserver = null;
-		this.ptySession = null;
+		this.scriptPtySession = null;
 		this.fallbackSession = null;
 		this.terminal = null;
 		this.terminalEl = null;
@@ -245,8 +229,8 @@ export class XtermView extends ItemView {
 		if (this.fitAddon && this.terminal) {
 			this.fitAddon.fit();
 			// Only resize PTY if using PTY mode
-			if (this.ptySession && !this.usingFallback) {
-				this.ptySession.resize(this.terminal.cols, this.terminal.rows);
+			if (this.scriptPtySession && !this.usingFallback) {
+				this.scriptPtySession.resize(this.terminal.cols, this.terminal.rows);
 			}
 		}
 	}
@@ -272,14 +256,14 @@ export class XtermView extends ItemView {
 			// Execute asynchronously
 			this.executeInFallback(command);
 		} else {
-			// PTY mode - write directly
-			if (!this.ptySession) {
+			// Script PTY mode - write directly
+			if (!this.scriptPtySession) {
 				throw new Error("No PTY session available");
 			}
-			if (!this.ptySession.isAlive) {
+			if (!this.scriptPtySession.isAlive) {
 				throw new Error("PTY session not running");
 			}
-			this.ptySession.write(command + "\n");
+			this.scriptPtySession.write(command + "\n");
 		}
 	}
 
