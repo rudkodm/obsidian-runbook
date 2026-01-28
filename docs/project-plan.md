@@ -269,17 +269,17 @@ All validation tests passed:
 
 ---
 
-## Phase 7: Session Lifecycle ⚠️ IN PROGRESS
+## Phase 7: Session Lifecycle ✅ COMPLETE
 
 ### 7.1 Lifecycle Management
-- [ ] Start default terminal on plugin load (requires settings - Phase 8)
+- [ ] Start default terminal on plugin load (moved to Phase 8 settings)
 - [x] Graceful shutdown on plugin unload
 - [x] Handle shell crashes and auto-restart
 - [x] Show status in status bar
 
 ### 7.2 Session State
-- [ ] Track current working directory per terminal
-- [ ] Track environment variables (informational)
+- [ ] Track current working directory per terminal (deferred - nice to have)
+- [ ] Track environment variables (deferred - nice to have)
 - [x] Session restart preserves nothing (clean slate)
 
 ### 7.3 Verification Criteria
@@ -293,13 +293,13 @@ All validation tests passed:
 
 ---
 
-## Phase 8: Settings & Configuration
+## Phase 8: Settings & Configuration ⚠️ IN PROGRESS
 
 ### 8.1 Plugin Settings Tab
 - [ ] Default shell override
 - [ ] Auto-advance cursor toggle
 - [ ] Strip prompt prefixes toggle ($ and >)
-- [ ] Terminal panel default state (open/closed)
+- [ ] Auto-open terminal on plugin load toggle
 - [ ] Default terminal count on startup
 
 ### 8.2 Frontmatter Support (Future)
@@ -390,9 +390,9 @@ All validation tests passed:
 ## Implementation Order
 
 ```
-Phase 0-5 ✅ → Phase 6 ✅ → Phase 6b ✅ → Phase 7-8 → Phase 9-10 → Phase 11
-              (xterm.js)   (Dev Console)      ▲
-                                          YOU ARE HERE
+Phase 0-5 ✅ → Phase 6 ✅ → Phase 6b ✅ → Phase 7 ✅ → Phase 8 → Phase 9-10 → Phase 11
+              (xterm.js)   (Dev Console)   (Lifecycle)     ▲
+                                                       YOU ARE HERE
 ```
 
 ---
@@ -458,4 +458,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 7 (Session Lifecycle) - Phases 0-6b complete
+**Status:** Phase 8 (Settings & Configuration) - Phases 0-7 complete
