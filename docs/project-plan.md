@@ -269,27 +269,27 @@ All validation tests passed:
 
 ---
 
-## Phase 7: Session Lifecycle
+## Phase 7: Session Lifecycle ⚠️ IN PROGRESS
 
 ### 7.1 Lifecycle Management
-- [ ] Start default terminal on plugin load
-- [ ] Graceful shutdown on plugin unload
-- [ ] Handle shell crashes and auto-restart
-- [ ] Show status in status bar
+- [ ] Start default terminal on plugin load (requires settings - Phase 8)
+- [x] Graceful shutdown on plugin unload
+- [x] Handle shell crashes and auto-restart
+- [x] Show status in status bar
 
 ### 7.2 Session State
 - [ ] Track current working directory per terminal
 - [ ] Track environment variables (informational)
-- [ ] Session restart preserves nothing (clean slate)
+- [x] Session restart preserves nothing (clean slate)
 
 ### 7.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Plugin load | Default terminal auto-starts |
-| Plugin unload | All terminals terminated cleanly |
-| Status bar | Shows active terminal status |
-| Shell crash | Auto-restarts with notice |
+| Plugin load | Default terminal auto-starts (deferred) |
+| Plugin unload | All terminals terminated cleanly ✅ |
+| Status bar | Shows active terminal status ✅ |
+| Shell crash | Auto-restarts with notice ✅ |
 
 ---
 

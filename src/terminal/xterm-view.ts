@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -6,6 +6,25 @@ import { PythonPtySession } from "../shell/python-pty-session";
 import { ShellSession } from "../shell/session";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
+
+/** Terminal session state */
+export type TerminalState = "starting" | "running" | "exited" | "error";
+
+/** Event callbacks for terminal state changes */
+export interface TerminalStateCallback {
+	(terminalId: number, state: TerminalState): void;
+}
+
+// Global state change listeners
+const stateListeners: Set<TerminalStateCallback> = new Set();
+
+/**
+ * Subscribe to terminal state changes
+ */
+export function onTerminalStateChange(callback: TerminalStateCallback): () => void {
+	stateListeners.add(callback);
+	return () => stateListeners.delete(callback);
+}
 
 /**
  * Terminal view using xterm.js with PTY support (or fallback to basic shell)
@@ -21,14 +40,21 @@ export class XtermView extends ItemView {
 	private fallbackSession: ShellSession | null = null;
 	private terminalEl: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
-	private sessionName: string;
 	private usingFallback: boolean = false;
-	private static sessionCounter = 0;
+	private _state: TerminalState = "starting";
+	private autoRestart: boolean = true;
+
+	// Terminal identification
+	private static nextId = 1;
+	readonly terminalId: number;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
-		XtermView.sessionCounter++;
-		this.sessionName = `Terminal ${XtermView.sessionCounter}`;
+		this.terminalId = XtermView.nextId++;
+	}
+
+	get state(): TerminalState {
+		return this._state;
 	}
 
 	getViewType(): string {
@@ -36,7 +62,7 @@ export class XtermView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return `Terminal: ${XtermView.sessionCounter}`;
+		return `Terminal ${this.terminalId}`;
 	}
 
 	getIcon(): string {
@@ -73,13 +99,8 @@ export class XtermView extends ItemView {
 		// Initial fit
 		this.fitAddon.fit();
 
-		// Check if Python PTY is available (Unix with Python 3) or use fallback
-		if (PythonPtySession.isAvailable()) {
-			await this.initPythonPtySession();
-		} else {
-			console.log("Runbook: Python PTY not available, using fallback shell");
-			await this.initFallbackSession();
-		}
+		// Start the shell session
+		await this.startSession();
 
 		// Handle resize
 		this.resizeObserver = new ResizeObserver(() => {
@@ -89,6 +110,21 @@ export class XtermView extends ItemView {
 
 		// Focus terminal
 		this.terminal.focus();
+	}
+
+	/**
+	 * Start the shell session (PTY or fallback)
+	 */
+	private async startSession(): Promise<void> {
+		this.setState("starting");
+
+		// Check if Python PTY is available (Unix with Python 3) or use fallback
+		if (PythonPtySession.isAvailable()) {
+			await this.initPythonPtySession();
+		} else {
+			console.log("Runbook: Python PTY not available, using fallback shell");
+			await this.initFallbackSession();
+		}
 	}
 
 	/**
@@ -110,17 +146,25 @@ export class XtermView extends ItemView {
 
 		// Connect terminal input to PTY
 		this.terminal!.onData((data: string) => {
-			this.ptySession?.write(data);
+			if (this.ptySession?.isAlive) {
+				this.ptySession.write(data);
+			}
 		});
 
-		// Handle PTY exit
+		// Handle PTY exit - offer restart
 		this.ptySession.on("exit", (code: number) => {
-			this.terminal?.write(`\r\n[Process exited with code ${code}]\r\n`);
+			this.handleSessionExit(code);
+		});
+
+		// Handle PTY errors
+		this.ptySession.on("error", (err: Error) => {
+			this.handleSessionError(err);
 		});
 
 		// Start PTY
 		try {
 			this.ptySession.spawn();
+			this.setState("running");
 			console.log("Runbook: Python PTY spawned successfully, pid:", this.ptySession.pid);
 		} catch (err) {
 			console.error("Runbook: Failed to spawn Python PTY, falling back:", err);
@@ -171,19 +215,79 @@ export class XtermView extends ItemView {
 		// Start shell
 		try {
 			this.fallbackSession.spawn();
+			this.setState("running");
 			console.log("Runbook: Fallback shell spawned, pid:", this.fallbackSession.pid);
 			this.showPrompt();
 		} catch (err) {
 			console.error("Runbook: Failed to spawn fallback shell:", err);
 			this.terminal?.write(`\x1b[31m[Failed to start shell: ${err}]\x1b[0m\r\n`);
+			this.setState("error");
 		}
+	}
+
+	/**
+	 * Handle session exit - show message and optionally restart
+	 */
+	private handleSessionExit(code: number): void {
+		this.setState("exited");
+		this.terminal?.write(`\r\n\x1b[33m[Process exited with code ${code}]\x1b[0m\r\n`);
+
+		if (this.autoRestart) {
+			this.terminal?.write("\x1b[90mRestarting shell...\x1b[0m\r\n");
+			// Small delay before restart
+			setTimeout(() => {
+				if (this._state === "exited") {
+					this.restartSession();
+				}
+			}, 500);
+		} else {
+			this.terminal?.write("\x1b[90mPress Enter to restart shell\x1b[0m\r\n");
+			this.setupRestartOnEnter();
+		}
+	}
+
+	/**
+	 * Handle session error
+	 */
+	private handleSessionError(err: Error): void {
+		this.setState("error");
+		this.terminal?.write(`\r\n\x1b[31m[Shell error: ${err.message}]\x1b[0m\r\n`);
+		new Notice(`Terminal error: ${err.message}`);
+
+		this.terminal?.write("\x1b[90mPress Enter to restart shell\x1b[0m\r\n");
+		this.setupRestartOnEnter();
+	}
+
+	/**
+	 * Setup one-time Enter key handler to restart session
+	 */
+	private setupRestartOnEnter(): void {
+		const disposable = this.terminal?.onData((data: string) => {
+			if (data === "\r") {
+				disposable?.dispose();
+				this.restartSession();
+			}
+		});
+	}
+
+	/**
+	 * Restart the shell session
+	 */
+	async restartSession(): Promise<void> {
+		// Clean up existing sessions
+		this.ptySession?.kill();
+		this.fallbackSession?.kill();
+		this.ptySession = null;
+		this.fallbackSession = null;
+
+		this.terminal?.write("\r\n");
+		await this.startSession();
 	}
 
 	/**
 	 * Show command prompt in fallback mode
 	 */
 	private showPrompt(): void {
-		// Green prompt for better visibility (iTerm2-like)
 		this.terminal?.write("\x1b[32m$\x1b[0m ");
 	}
 
@@ -209,6 +313,9 @@ export class XtermView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
+		// Disable auto-restart during close
+		this.autoRestart = false;
+
 		// Clean up
 		this.resizeObserver?.disconnect();
 		this.ptySession?.kill();
@@ -220,6 +327,9 @@ export class XtermView extends ItemView {
 		this.fallbackSession = null;
 		this.terminal = null;
 		this.terminalEl = null;
+
+		// Notify listeners of terminal closure
+		this.setState("exited");
 	}
 
 	/**
@@ -228,8 +338,8 @@ export class XtermView extends ItemView {
 	fit(): void {
 		if (this.fitAddon && this.terminal) {
 			this.fitAddon.fit();
-			// Only resize PTY if using PTY mode
-			if (this.ptySession && !this.usingFallback) {
+			// Only resize PTY if using PTY mode and session is alive
+			if (this.ptySession?.isAlive && !this.usingFallback) {
 				this.ptySession.resize(this.terminal.cols, this.terminal.rows);
 			}
 		}
@@ -243,6 +353,13 @@ export class XtermView extends ItemView {
 	}
 
 	/**
+	 * Check if terminal session is running
+	 */
+	get isRunning(): boolean {
+		return this._state === "running";
+	}
+
+	/**
 	 * Write text to the terminal (for code block execution)
 	 */
 	writeCommand(command: string): void {
@@ -253,7 +370,6 @@ export class XtermView extends ItemView {
 			}
 			// Clear current line, show prompt with command, then execute
 			this.terminal?.write(`\r\x1b[K\x1b[32m$\x1b[0m ${command}\r\n`);
-			// Execute asynchronously
 			this.executeInFallback(command);
 		} else {
 			// PTY mode - write directly
@@ -264,6 +380,23 @@ export class XtermView extends ItemView {
 				throw new Error("PTY session not running");
 			}
 			this.ptySession.write(command + "\n");
+		}
+	}
+
+	/**
+	 * Update terminal state and notify listeners
+	 */
+	private setState(state: TerminalState): void {
+		if (this._state !== state) {
+			this._state = state;
+			// Notify all listeners
+			for (const listener of stateListeners) {
+				try {
+					listener(this.terminalId, state);
+				} catch (err) {
+					console.error("Runbook: State listener error:", err);
+				}
+			}
 		}
 	}
 
@@ -279,7 +412,7 @@ export class XtermView extends ItemView {
 			cursor: styles.getPropertyValue("--text-accent").trim() || "#569cd6",
 			cursorAccent: styles.getPropertyValue("--background-primary").trim() || "#1e1e1e",
 			selectionBackground: styles.getPropertyValue("--text-selection").trim() || "#264f78",
-			// ANSI colors - using reasonable defaults that work with dark themes
+			// ANSI colors
 			black: "#000000",
 			red: "#cd3131",
 			green: "#0dbc79",
