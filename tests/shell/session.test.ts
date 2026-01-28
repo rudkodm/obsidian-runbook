@@ -80,7 +80,8 @@ describe("ShellSession", () => {
 			await session.execute("cd /tmp");
 			const output = await session.execute("pwd");
 
-			expect(output.trim()).toBe("/tmp");
+			// On macOS, /tmp is a symlink to /private/tmp
+		expect(output.trim()).toMatch(/^(\/private)?\/tmp$/);
 		});
 
 		it("should throw if shell not running", async () => {
@@ -217,7 +218,8 @@ describe("ShellSession", () => {
 
 			try {
 				const output = await customSession.execute("pwd");
-				expect(output.trim()).toBe("/tmp");
+				// On macOS, /tmp is a symlink to /private/tmp
+		expect(output.trim()).toMatch(/^(\/private)?\/tmp$/);
 			} finally {
 				customSession.kill();
 			}

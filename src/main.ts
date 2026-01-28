@@ -1,5 +1,4 @@
 import { App, Editor, MarkdownView, Notice, Platform, Plugin, PluginManifest, WorkspaceLeaf } from "obsidian";
-import { ShellSession } from "./shell/session";
 import {
 	getCodeBlockContext,
 	getTextToExecute,
@@ -8,17 +7,18 @@ import {
 	stripPromptPrefix,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
-import { TerminalManager, TerminalView, TERMINAL_VIEW_TYPE, TERMINAL_STYLES } from "./terminal";
+import { XtermView, XTERM_VIEW_TYPE } from "./terminal/xterm-view";
+import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
+import { XTERM_STYLES } from "./terminal/xterm-styles";
 
 /**
  * Obsidian Runbook Plugin
  *
- * Executes code blocks directly from markdown notes using a persistent shell session.
+ * Executes code blocks directly from markdown notes using a real terminal (xterm.js + node-pty).
  */
 export default class RunbookPlugin extends Plugin {
-	private session: ShellSession | null = null;
-	private terminalManager: TerminalManager | null = null;
 	private styleEl: HTMLStyleElement | null = null;
+	private xtermStyleEl: HTMLStyleElement | null = null;
 
 	constructor(app: App, manifest: PluginManifest) {
 		super(app, manifest);
@@ -33,28 +33,17 @@ export default class RunbookPlugin extends Plugin {
 
 		console.log("Runbook: Plugin loading...");
 
-		// Inject terminal styles
+		// Inject styles (including xterm CSS)
 		this.injectStyles();
 
-		// Initialize terminal manager
-		this.terminalManager = new TerminalManager();
-
-		// Register terminal view (each instance is a separate terminal)
-		this.registerView(TERMINAL_VIEW_TYPE, (leaf) => {
-			return new TerminalView(leaf, this.terminalManager!);
+		// Register xterm terminal view (each instance is a separate terminal with PTY)
+		this.registerView(XTERM_VIEW_TYPE, (leaf) => {
+			return new XtermView(leaf);
 		});
 
-		// Initialize shell session (for backward compatibility)
-		this.session = new ShellSession();
-
-		// Set up session event listeners
-		this.session.on("stateChange", (state) => {
-			console.log(`Runbook: Shell state changed to: ${state}`);
-		});
-
-		this.session.on("error", (error) => {
-			console.error("Runbook: Shell error:", error);
-			new Notice(`Shell error: ${error.message}`);
+		// Register developer console view
+		this.registerView(DEV_CONSOLE_VIEW_TYPE, (leaf) => {
+			return new DevConsoleView(leaf);
 		});
 
 		// Main command: Execute line or selection (Shift + Cmd/Ctrl + Enter)
@@ -85,39 +74,38 @@ export default class RunbookPlugin extends Plugin {
 			callback: () => this.createNewTerminal(),
 		});
 
-		// Auto-start shell session
-		this.session.spawn();
-		console.log("Runbook: Shell auto-started", { pid: this.session.pid });
+		this.addCommand({
+			id: "open-dev-console",
+			name: "Open developer console",
+			callback: () => this.openDevConsole(),
+		});
 
 		// Register code block post-processor for reading view
 		this.registerMarkdownPostProcessor(
 			createCodeBlockProcessor({
-				getTerminalView: () => this.getActiveTerminalView(),
+				getTerminalView: () => this.getActiveXtermView(),
 				createTerminal: () => this.createNewTerminal(),
 			})
 		);
 		console.log("Runbook: Code block processor registered");
 
-		new Notice(`Runbook: Ready (PID: ${this.session.pid})`);
+		new Notice("Runbook: Ready");
 		console.log("Runbook: Plugin loaded successfully");
 	}
 
 	async onunload() {
 		console.log("Runbook: Plugin unloading...");
-		if (this.session) {
-			this.session.kill();
-			this.session = null;
-		}
-		if (this.terminalManager) {
-			this.terminalManager.destroy();
-			this.terminalManager = null;
-		}
 		if (this.styleEl) {
 			this.styleEl.remove();
 			this.styleEl = null;
 		}
-		// Detach terminal leaves
-		this.app.workspace.detachLeavesOfType(TERMINAL_VIEW_TYPE);
+		if (this.xtermStyleEl) {
+			this.xtermStyleEl.remove();
+			this.xtermStyleEl = null;
+		}
+		// Detach terminal leaves (this will trigger onClose which kills PTY)
+		this.app.workspace.detachLeavesOfType(XTERM_VIEW_TYPE);
+		this.app.workspace.detachLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
 	}
 
 	/**
@@ -155,29 +143,23 @@ export default class RunbookPlugin extends Plugin {
 		});
 
 		try {
-			let output: string;
-
 			// Get or create terminal view
-			let terminalView = this.getActiveTerminalView();
-			if (!terminalView) {
+			let xtermView = this.getActiveXtermView();
+			if (!xtermView) {
 				// Auto-create a terminal if none exists
 				await this.createNewTerminal();
 				// Wait for view to be ready
-				await new Promise(resolve => setTimeout(resolve, 200));
-				terminalView = this.getActiveTerminalView();
+				await new Promise(resolve => setTimeout(resolve, 300));
+				xtermView = this.getActiveXtermView();
 			}
 
-			if (terminalView) {
-				output = await terminalView.executeFromCodeBlock(
-					command,
-					context.codeBlock.language || "bash"
-				);
+			if (xtermView) {
+				// Write command to terminal
+				xtermView.writeCommand(command);
 			} else {
 				new Notice("Failed to create terminal");
 				return;
 			}
-
-			console.log("Runbook: Execution complete", { output });
 
 			// Auto-advance cursor if not a selection
 			if (!textInfo.isSelection) {
@@ -193,7 +175,7 @@ export default class RunbookPlugin extends Plugin {
 	 * Toggle the terminal panel
 	 */
 	private async toggleTerminal(): Promise<void> {
-		const existing = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+		const existing = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 
 		if (existing.length > 0) {
 			// Close the terminal
@@ -211,7 +193,7 @@ export default class RunbookPlugin extends Plugin {
 		const { workspace } = this.app;
 
 		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+		const leaves = workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 
 		if (leaves.length > 0) {
 			leaf = leaves[0];
@@ -220,7 +202,7 @@ export default class RunbookPlugin extends Plugin {
 			leaf = workspace.getLeaf("split", "horizontal");
 			if (leaf) {
 				await leaf.setViewState({
-					type: TERMINAL_VIEW_TYPE,
+					type: XTERM_VIEW_TYPE,
 					active: true,
 				});
 			}
@@ -228,10 +210,10 @@ export default class RunbookPlugin extends Plugin {
 
 		if (leaf) {
 			workspace.revealLeaf(leaf);
-			// Focus the input
-			const view = leaf.view as TerminalView;
-			if (view && view.focusInput) {
-				view.focusInput();
+			// Focus the terminal
+			const view = leaf.view as XtermView;
+			if (view && view.focus) {
+				view.focus();
 			}
 		}
 	}
@@ -246,15 +228,50 @@ export default class RunbookPlugin extends Plugin {
 		const leaf = workspace.getLeaf("split", "horizontal");
 		if (leaf) {
 			await leaf.setViewState({
-				type: TERMINAL_VIEW_TYPE,
+				type: XTERM_VIEW_TYPE,
 				active: true,
 			});
 			workspace.revealLeaf(leaf);
 
 			// Focus the terminal
-			const view = leaf.view as TerminalView;
-			if (view && view.focusInput) {
-				setTimeout(() => view.focusInput(), 100);
+			const view = leaf.view as XtermView;
+			if (view && view.focus) {
+				setTimeout(() => view.focus(), 100);
+			}
+		}
+	}
+
+	/**
+	 * Open developer console (for debugging Obsidian)
+	 */
+	private async openDevConsole(): Promise<void> {
+		const { workspace } = this.app;
+
+		// Check if already open
+		const existing = workspace.getLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
+		if (existing.length > 0) {
+			// Focus existing console
+			workspace.revealLeaf(existing[0]);
+			const view = existing[0].view as DevConsoleView;
+			if (view && view.focus) {
+				view.focus();
+			}
+			return;
+		}
+
+		// Create new dev console in right sidebar or split
+		const leaf = workspace.getLeaf("split", "vertical");
+		if (leaf) {
+			await leaf.setViewState({
+				type: DEV_CONSOLE_VIEW_TYPE,
+				active: true,
+			});
+			workspace.revealLeaf(leaf);
+
+			// Focus the console
+			const view = leaf.view as DevConsoleView;
+			if (view && view.focus) {
+				setTimeout(() => view.focus(), 100);
 			}
 		}
 	}
@@ -263,37 +280,155 @@ export default class RunbookPlugin extends Plugin {
 	 * Inject terminal styles into the document
 	 */
 	private injectStyles(): void {
+		// Inject xterm.js styles
 		this.styleEl = document.createElement("style");
-		this.styleEl.id = "runbook-terminal-styles";
-		this.styleEl.textContent = TERMINAL_STYLES;
+		this.styleEl.id = "runbook-xterm-styles";
+		this.styleEl.textContent = XTERM_STYLES;
 		document.head.appendChild(this.styleEl);
+
+		// Load xterm.js CSS from node_modules
+		this.loadXtermCss();
 	}
 
 	/**
-	 * Get the active terminal view (the one with the active session)
+	 * Load xterm.js CSS dynamically
 	 */
-	getActiveTerminalView(): TerminalView | null {
-		const leaves = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+	private loadXtermCss(): void {
+		// The xterm CSS is bundled, so we need to inject it
+		// This is a minimal version of xterm.css
+		const xtermCss = `
+			.xterm {
+				cursor: text;
+				position: relative;
+				user-select: none;
+				-ms-user-select: none;
+				-webkit-user-select: none;
+			}
+			.xterm.focus, .xterm:focus {
+				outline: none;
+			}
+			.xterm .xterm-helpers {
+				position: absolute;
+				top: 0;
+				z-index: 5;
+			}
+			.xterm .xterm-helper-textarea {
+				padding: 0;
+				border: 0;
+				margin: 0;
+				position: absolute;
+				opacity: 0;
+				left: -9999em;
+				top: 0;
+				width: 0;
+				height: 0;
+				z-index: -5;
+				white-space: nowrap;
+				overflow: hidden;
+				resize: none;
+			}
+			.xterm .composition-view {
+				background: #000;
+				color: #FFF;
+				display: none;
+				position: absolute;
+				white-space: nowrap;
+				z-index: 1;
+			}
+			.xterm .composition-view.active {
+				display: block;
+			}
+			.xterm .xterm-viewport {
+				background-color: #000;
+				overflow-y: scroll;
+				cursor: default;
+				position: absolute;
+				right: 0;
+				left: 0;
+				top: 0;
+				bottom: 0;
+			}
+			.xterm .xterm-screen {
+				position: relative;
+			}
+			.xterm .xterm-screen canvas {
+				position: absolute;
+				left: 0;
+				top: 0;
+			}
+			.xterm .xterm-scroll-area {
+				visibility: hidden;
+			}
+			.xterm-char-measure-element {
+				display: inline-block;
+				visibility: hidden;
+				position: absolute;
+				top: 0;
+				left: -9999em;
+				line-height: normal;
+			}
+			.xterm.enable-mouse-events {
+				cursor: default;
+			}
+			.xterm.xterm-cursor-pointer, .xterm .xterm-cursor-pointer {
+				cursor: pointer;
+			}
+			.xterm.column-select.focus {
+				cursor: crosshair;
+			}
+			.xterm .xterm-accessibility, .xterm .xterm-message {
+				position: absolute;
+				left: 0;
+				top: 0;
+				bottom: 0;
+				right: 0;
+				z-index: 10;
+				color: transparent;
+				pointer-events: none;
+			}
+			.xterm .live-region {
+				position: absolute;
+				left: -9999px;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+			}
+			.xterm-dim {
+				opacity: 1 !important;
+			}
+			.xterm-underline-1 { text-decoration: underline; }
+			.xterm-underline-2 { text-decoration: double underline; }
+			.xterm-underline-3 { text-decoration: wavy underline; }
+			.xterm-underline-4 { text-decoration: dotted underline; }
+			.xterm-underline-5 { text-decoration: dashed underline; }
+			.xterm-overline { text-decoration: overline; }
+			.xterm-overline.xterm-underline-1 { text-decoration: overline underline; }
+			.xterm-overline.xterm-underline-2 { text-decoration: overline double underline; }
+			.xterm-overline.xterm-underline-3 { text-decoration: overline wavy underline; }
+			.xterm-overline.xterm-underline-4 { text-decoration: overline dotted underline; }
+			.xterm-overline.xterm-underline-5 { text-decoration: overline dashed underline; }
+			.xterm-strikethrough { text-decoration: line-through; }
+			.xterm-screen .xterm-decoration-container .xterm-decoration { z-index: 6; position: absolute; }
+			.xterm-screen .xterm-decoration-container .xterm-decoration.xterm-decoration-top-layer { z-index: 7; }
+			.xterm-decoration-overview-ruler { z-index: 8; position: absolute; top: 0; right: 0; pointer-events: none; }
+			.xterm-decoration-top { z-index: 2; position: relative; }
+		`;
+
+		this.xtermStyleEl = document.createElement("style");
+		this.xtermStyleEl.id = "runbook-xterm-lib-styles";
+		this.xtermStyleEl.textContent = xtermCss;
+		document.head.appendChild(this.xtermStyleEl);
+	}
+
+	/**
+	 * Get the active xterm view
+	 */
+	getActiveXtermView(): XtermView | null {
+		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		if (leaves.length === 0) return null;
 
-		// Find the terminal with the active session
-		const activeSessionId = this.terminalManager?.activeSessionId;
-		for (const leaf of leaves) {
-			const view = leaf.view as TerminalView;
-			if (view && view.getSessionId && view.getSessionId() === activeSessionId) {
-				return view;
-			}
-		}
-
-		// Fallback to first terminal view
-		const firstView = leaves[0].view as TerminalView;
+		// Return the first (most recently focused) terminal
+		const firstView = leaves[0].view as XtermView;
 		return firstView || null;
-	}
-
-	/**
-	 * Get the terminal manager (for external access)
-	 */
-	getTerminalManager(): TerminalManager | null {
-		return this.terminalManager;
 	}
 }
