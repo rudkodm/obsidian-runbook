@@ -3,19 +3,43 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { PtySession } from "../shell/pty-session";
+import { ShellSession } from "../shell/session";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
 
+// Flag to track if node-pty is available
+let nodePtyAvailable: boolean | null = null;
+
 /**
- * Terminal view using xterm.js with full PTY support
+ * Check if node-pty is available
+ */
+function checkNodePtyAvailable(): boolean {
+	if (nodePtyAvailable !== null) {
+		return nodePtyAvailable;
+	}
+	try {
+		require("node-pty");
+		nodePtyAvailable = true;
+		console.log("Runbook: node-pty is available");
+	} catch (err) {
+		nodePtyAvailable = false;
+		console.warn("Runbook: node-pty not available, using fallback shell:", err);
+	}
+	return nodePtyAvailable;
+}
+
+/**
+ * Terminal view using xterm.js with PTY support (or fallback to basic shell)
  */
 export class XtermView extends ItemView {
 	private terminal: Terminal | null = null;
 	private fitAddon: FitAddon | null = null;
 	private ptySession: PtySession | null = null;
+	private fallbackSession: ShellSession | null = null;
 	private terminalEl: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private sessionName: string;
+	private usingFallback: boolean = false;
 	private static sessionCounter = 0;
 
 	constructor(leaf: WorkspaceLeaf) {
@@ -66,10 +90,33 @@ export class XtermView extends ItemView {
 		// Initial fit
 		this.fitAddon.fit();
 
+		// Check if node-pty is available and use appropriate session
+		if (checkNodePtyAvailable()) {
+			await this.initPtySession();
+		} else {
+			await this.initFallbackSession();
+		}
+
+		// Handle resize
+		this.resizeObserver = new ResizeObserver(() => {
+			this.fit();
+		});
+		this.resizeObserver.observe(this.terminalEl);
+
+		// Focus terminal
+		this.terminal.focus();
+	}
+
+	/**
+	 * Initialize PTY session (full terminal with node-pty)
+	 */
+	private async initPtySession(): Promise<void> {
+		this.usingFallback = false;
+
 		// Create PTY session
 		this.ptySession = new PtySession({
-			cols: this.terminal.cols,
-			rows: this.terminal.rows,
+			cols: this.terminal!.cols,
+			rows: this.terminal!.rows,
 		});
 
 		// Connect PTY output to terminal
@@ -78,7 +125,7 @@ export class XtermView extends ItemView {
 		});
 
 		// Connect terminal input to PTY
-		this.terminal.onData((data: string) => {
+		this.terminal!.onData((data: string) => {
 			this.ptySession?.write(data);
 		});
 
@@ -92,29 +139,101 @@ export class XtermView extends ItemView {
 			this.ptySession.spawn();
 			console.log("Runbook: PTY spawned successfully, pid:", this.ptySession.pid);
 		} catch (err) {
-			console.error("Runbook: Failed to spawn PTY:", err);
-			this.terminal?.write(`\r\n[Failed to start terminal: ${err}]\r\n`);
-			this.terminal?.write("[This may be due to node-pty not being compatible with this Obsidian version]\r\n");
+			console.error("Runbook: Failed to spawn PTY, falling back:", err);
+			this.ptySession = null;
+			await this.initFallbackSession();
+		}
+	}
+
+	/**
+	 * Initialize fallback session (basic shell without PTY)
+	 */
+	private async initFallbackSession(): Promise<void> {
+		this.usingFallback = true;
+		this.terminal?.write("[Using basic shell mode - some features may be limited]\r\n");
+		this.terminal?.write("[Interactive programs like vim/less won't work, but basic commands will]\r\n\r\n");
+
+		// Create fallback shell session
+		this.fallbackSession = new ShellSession();
+
+		// Connect shell output to terminal
+		this.fallbackSession.on("output", (data: string) => {
+			// Convert newlines for terminal display
+			const formatted = data.replace(/\n/g, "\r\n");
+			this.terminal?.write(formatted);
+		});
+
+		// Handle terminal input - collect line and execute on Enter
+		let inputBuffer = "";
+		this.terminal!.onData((data: string) => {
+			if (data === "\r") {
+				// Enter pressed - execute command
+				this.terminal?.write("\r\n");
+				if (inputBuffer.trim()) {
+					this.executeInFallback(inputBuffer);
+				}
+				inputBuffer = "";
+				this.showPrompt();
+			} else if (data === "\x7f") {
+				// Backspace
+				if (inputBuffer.length > 0) {
+					inputBuffer = inputBuffer.slice(0, -1);
+					this.terminal?.write("\b \b");
+				}
+			} else if (data >= " " || data === "\t") {
+				// Regular character
+				inputBuffer += data;
+				this.terminal?.write(data);
+			}
+		});
+
+		// Start shell
+		try {
+			this.fallbackSession.spawn();
+			console.log("Runbook: Fallback shell spawned, pid:", this.fallbackSession.pid);
+			this.showPrompt();
+		} catch (err) {
+			console.error("Runbook: Failed to spawn fallback shell:", err);
+			this.terminal?.write(`[Failed to start shell: ${err}]\r\n`);
+		}
+	}
+
+	/**
+	 * Show command prompt in fallback mode
+	 */
+	private showPrompt(): void {
+		this.terminal?.write("$ ");
+	}
+
+	/**
+	 * Execute command in fallback mode
+	 */
+	private async executeInFallback(command: string): Promise<void> {
+		if (!this.fallbackSession?.isAlive) {
+			this.terminal?.write("[Shell not running]\r\n");
+			return;
 		}
 
-		// Handle resize
-		this.resizeObserver = new ResizeObserver(() => {
-			this.fit();
-		});
-		this.resizeObserver.observe(this.terminalEl);
-
-		// Focus terminal
-		this.terminal.focus();
+		try {
+			const output = await this.fallbackSession.execute(command);
+			if (output) {
+				this.terminal?.write(output.replace(/\n/g, "\r\n") + "\r\n");
+			}
+		} catch (err) {
+			this.terminal?.write(`[Error: ${err}]\r\n`);
+		}
 	}
 
 	async onClose(): Promise<void> {
 		// Clean up
 		this.resizeObserver?.disconnect();
 		this.ptySession?.kill();
+		this.fallbackSession?.kill();
 		this.terminal?.dispose();
 
 		this.resizeObserver = null;
 		this.ptySession = null;
+		this.fallbackSession = null;
 		this.terminal = null;
 		this.terminalEl = null;
 	}
@@ -123,9 +242,12 @@ export class XtermView extends ItemView {
 	 * Fit terminal to container
 	 */
 	fit(): void {
-		if (this.fitAddon && this.terminal && this.ptySession) {
+		if (this.fitAddon && this.terminal) {
 			this.fitAddon.fit();
-			this.ptySession.resize(this.terminal.cols, this.terminal.rows);
+			// Only resize PTY if using PTY mode
+			if (this.ptySession && !this.usingFallback) {
+				this.ptySession.resize(this.terminal.cols, this.terminal.rows);
+			}
 		}
 	}
 
@@ -140,20 +262,25 @@ export class XtermView extends ItemView {
 	 * Write text to the terminal (for code block execution)
 	 */
 	writeCommand(command: string): void {
-		if (!this.ptySession) {
-			console.error("Runbook: No PTY session");
-			throw new Error("No PTY session available");
-		}
-		if (!this.ptySession.isAlive) {
-			console.error("Runbook: PTY session not alive, attempting to spawn...");
-			try {
-				this.ptySession.spawn();
-			} catch (err) {
-				console.error("Runbook: Failed to spawn PTY:", err);
-				throw new Error(`Failed to start terminal: ${err}`);
+		if (this.usingFallback) {
+			// Fallback mode - execute and show output
+			if (!this.fallbackSession?.isAlive) {
+				throw new Error("Shell session not running");
 			}
+			// Show command in terminal
+			this.terminal?.write(`$ ${command}\r\n`);
+			// Execute asynchronously
+			this.executeInFallback(command);
+		} else {
+			// PTY mode - write directly
+			if (!this.ptySession) {
+				throw new Error("No PTY session available");
+			}
+			if (!this.ptySession.isAlive) {
+				throw new Error("PTY session not running");
+			}
+			this.ptySession.write(command + "\n");
 		}
-		this.ptySession.write(command + "\n");
 	}
 
 	/**
