@@ -190,169 +190,227 @@ All validation tests passed:
 
 ---
 
-## Phase 6: Real Terminal (xterm.js + node-pty)
+## Phase 6: Real Terminal (xterm.js + Python PTY) ✅ COMPLETE
+
+**Note:** Used Python's `pty` module instead of `node-pty` to avoid native module compilation issues.
 
 ### 6.1 Dependencies
-- [ ] Add `node-pty` for PTY support
-- [ ] Add `xterm.js` for terminal emulation
-- [ ] Add `xterm-addon-fit` for auto-resize
-- [ ] Add `xterm-addon-web-links` for clickable links
+- [x] Add `@xterm/xterm` for terminal emulation
+- [x] Add `@xterm/addon-fit` for auto-resize
+- [x] Add `@xterm/addon-web-links` for clickable links
+- [x] Use Python 3 `pty` module (no native compilation needed)
 
-### 6.2 PTY Shell Session
-- [ ] Create `src/shell/pty-session.ts`
-- [ ] Replace `child_process.spawn` with `node-pty.spawn`
-- [ ] Handle PTY resize events
-- [ ] Proper signal handling (SIGINT, etc.)
+### 6.2 Python PTY Shell Session
+- [x] Create `src/shell/python-pty-session.ts`
+- [x] Embedded Python PTY helper script
+- [x] Handle PTY resize events via command pipe
+- [x] Proper signal handling (SIGTERM on kill)
+- [x] Fallback to basic ShellSession if Python unavailable
 
 ### 6.3 xterm.js Terminal View
-- [ ] Replace HTML div terminal with xterm.js Terminal
-- [ ] Integrate xterm.js into Obsidian ItemView
-- [ ] Handle terminal resize on panel resize
-- [ ] Theme integration (use Obsidian CSS variables)
+- [x] Create `src/terminal/xterm-view.ts`
+- [x] Integrate xterm.js into Obsidian ItemView
+- [x] Handle terminal resize on panel resize (ResizeObserver)
+- [x] Theme integration (uses Obsidian CSS variables)
 
 ### 6.4 Full Terminal Features
-- [ ] ANSI color support
-- [ ] Cursor positioning
-- [ ] `clear` command works
-- [ ] Interactive programs (vim, less, top)
-- [ ] Copy/paste support
-- [ ] Selection support
+- [x] ANSI color support (TERM=xterm-256color)
+- [x] Cursor positioning
+- [x] `clear` command works
+- [x] Interactive programs (vim, less, top)
+- [x] Copy/paste support (via xterm.js)
+- [x] Selection support (via xterm.js)
+- [x] Clickable URLs (web-links addon)
 
 ### 6.5 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Colors | `ls --color` shows colored output |
-| Clear | `clear` clears the screen |
-| Interactive | `vim` opens and is usable |
-| Resize | Terminal reflows on panel resize |
+| Colors | `ls --color` shows colored output ✅ |
+| Clear | `clear` clears the screen ✅ |
+| Interactive | `vim` opens and is usable ✅ |
+| Resize | Terminal reflows on panel resize ✅ |
 
 ---
 
-## Phase 7: Session Lifecycle
+## Phase 6b: Developer Console ✅ COMPLETE (Bonus Feature)
+
+**Note:** This feature was not in the original plan but adds significant debugging value.
+
+### 6b.1 Console View
+- [x] Create `src/terminal/dev-console-view.ts`
+- [x] JavaScript REPL using xterm.js
+- [x] Register as Obsidian ItemView
+- [x] Command: `Runbook: Open developer console`
+
+### 6b.2 Obsidian API Access
+- [x] Expose `app` - Obsidian App instance
+- [x] Expose `workspace` - Workspace manager
+- [x] Expose `vault` - Vault API
+- [x] Expose `plugins` - Plugin manager
+- [x] `clear()` helper function
+
+### 6b.3 Help System
+- [x] `help()` - Main help
+- [x] `help.app()` - App object reference
+- [x] `help.workspace()` - Workspace reference
+- [x] `help.vault()` - Vault reference
+- [x] `help.plugins()` - Plugins reference
+- [x] `help.examples()` - Usage examples
+- [x] `help.shortcuts()` - Keyboard shortcuts
+
+### 6b.4 Advanced Features
+- [x] Tab completion for objects and properties
+- [x] Command history (up/down arrows)
+- [x] Line editing (Ctrl+A, Ctrl+E, arrow keys)
+- [x] Console interception (logs appear in console)
+- [x] Formatted output with ANSI colors
+- [x] Theme integration with Obsidian
+
+---
+
+## Phase 7: Session Lifecycle ✅ COMPLETE
 
 ### 7.1 Lifecycle Management
-- [ ] Start default terminal on plugin load
-- [ ] Graceful shutdown on plugin unload
-- [ ] Handle shell crashes and auto-restart
-- [ ] Show status in status bar
+- [ ] Start default terminal on plugin load (moved to Phase 8 settings)
+- [x] Graceful shutdown on plugin unload
+- [x] Handle shell crashes and auto-restart
+- [x] Show status in status bar
 
 ### 7.2 Session State
-- [ ] Track current working directory per terminal
-- [ ] Track environment variables (informational)
-- [ ] Session restart preserves nothing (clean slate)
+- [ ] Track current working directory per terminal (deferred - nice to have)
+- [ ] Track environment variables (deferred - nice to have)
+- [x] Session restart preserves nothing (clean slate)
 
 ### 7.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Plugin load | Default terminal auto-starts |
-| Plugin unload | All terminals terminated cleanly |
-| Status bar | Shows active terminal status |
-| Shell crash | Auto-restarts with notice |
+| Plugin load | Default terminal auto-starts (deferred) |
+| Plugin unload | All terminals terminated cleanly ✅ |
+| Status bar | Shows active terminal status ✅ |
+| Shell crash | Auto-restarts with notice ✅ |
 
 ---
 
-## Phase 8: Settings & Configuration
+## Phase 8: Runbook Features
 
-### 8.1 Plugin Settings Tab
-- [ ] Default shell override
+**Core features to make this a true "Runbook" tool.**
+**Compatibility:** Adopts [Runme](https://runme.dev) code block annotation syntax
+so notebooks are portable between Obsidian Runbook and Runme (VS Code).
+
+### 8.1 Runme-Compatible Code Block Annotations
+- [ ] Support JSON attributes after language tag: ` ```sh {"name":"setup"} `
+- [ ] Parse `name` attribute (cell identifier)
+- [ ] Parse `excludeFromRunAll` attribute
+- [ ] Parse `cwd` attribute (per-cell working directory)
+- [ ] Ignore unknown attributes gracefully (forward-compatible)
+- [ ] Support frontmatter for document-level config (`shell`, `cwd`)
+
+### 8.2 Multi-Language Support
+- [ ] Route code blocks to interpreter based on language tag
+- [ ] Python execution (`python`, `py`) via `python3 -c` or temp file
+- [ ] JavaScript execution (`javascript`, `js`) via `node -e` or temp file
+- [ ] TypeScript execution (`typescript`, `ts`) via `npx tsx` or temp file
+- [ ] Shell execution (`sh`, `bash`, `zsh`, `shell`) via PTY (existing)
+- [ ] Update `isLanguageSupported()` with new languages
+- [ ] Error handling for missing interpreters
+
+### 8.3 Session Isolation per Note (Runbook Concept)
+- [ ] Each note gets its own shell session (not shared)
+- [ ] Track note file path → session mapping
+- [ ] Auto-create session on first execute from a note
+- [ ] Clean up session when note is closed
+- [ ] Terminal tab shows note name for identification
+- [ ] Non-shell languages (Python/JS/TS) run in note's session shell
+
+### 8.4 Run All Cells (Execute Runbook)
+- [ ] Register `runbook:run-all` command
+- [ ] Collect all supported code blocks from active note
+- [ ] Execute sequentially in note's session
+- [ ] Respect `excludeFromRunAll` attribute
+- [ ] Respect `cwd` per-cell attribute
+- [ ] Stop on error (default behavior)
+- [ ] Output progress to terminal (e.g., "Running cell 2/5: setup...")
+
+### 8.5 Verification Criteria
+
+| Test | Pass Condition |
+|------|----------------|
+| Annotations | Runme-annotated blocks parse correctly |
+| Python | `python` code blocks execute via interpreter |
+| JavaScript | `js` code blocks execute via node |
+| TypeScript | `ts` code blocks execute via tsx |
+| Isolation | Two notes run in separate sessions |
+| Run All | Command executes all blocks in order |
+| excludeFromRunAll | Skipped blocks are not executed |
+
+---
+
+## Phase 9: Settings & Configuration
+
+### 9.1 Plugin Settings Tab
+- [ ] Create settings tab UI
+- [ ] Default shell path override
+- [ ] Python interpreter path (default: `python3`)
+- [ ] Node.js interpreter path (default: `node`)
 - [ ] Auto-advance cursor toggle
-- [ ] Strip prompt prefixes toggle ($ and >)
-- [ ] Terminal panel default state (open/closed)
-- [ ] Default terminal count on startup
 
-### 8.2 Frontmatter Support (Future)
-- [ ] Parse note frontmatter for overrides
-- [ ] Support `shell` property to override default
-
-### 8.3 Verification Criteria
+### 9.2 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
 | Settings tab | All options visible and functional |
 | Shell override | Uses configured shell |
-| Auto-advance | Respects setting |
-
----
-
-## Phase 9: UI Polish
-
-### 9.1 Code Block UI
-- [ ] Finalize execute button styling
-- [ ] Consistent button positioning
-- [ ] Hover states and transitions
-
-### 9.2 Output Container UI
-- [ ] Clean visual design
-- [ ] Proper spacing and borders
-- [ ] Smooth expand/collapse animations
-
-### 9.3 Terminal UI
-- [ ] Professional terminal appearance
-- [ ] Tab bar styling
-- [ ] Input field styling
-- [ ] Scrollbar styling
-
-### 9.4 Theme Compatibility
-- [ ] Light theme support
-- [ ] Dark theme support
-- [ ] Custom theme compatibility
-- [ ] High contrast accessibility
-
-### 9.5 Verification Criteria
-
-| Test | Pass Condition |
-|------|----------------|
-| Light theme | All UI elements visible and styled |
-| Dark theme | All UI elements visible and styled |
-| Animations | Smooth, non-jarring transitions |
+| Interpreter paths | Python/Node use configured paths |
 
 ---
 
 ## Phase 10: Documentation
 
-### 10.1 Documentation
-- [ ] User guide (README.md)
-- [ ] Installation instructions
-- [ ] Configuration reference
-- [ ] Troubleshooting guide
+### 10.1 README
+- [ ] Project description and feature overview
+- [ ] Installation instructions (manual install)
+- [ ] Quick start guide (basic usage)
+- [ ] Supported languages
+- [ ] Runme compatibility note
+- [ ] Command reference
 
 ### 10.2 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| README | Clear install steps |
-| New user | Can install and use from docs alone |
+| README | New user can install and use from docs alone |
 
 ---
 
-## Phase 11: Packaging & Distribution
+## Phase 11: Packaging & Release
 
-### 11.1 Plugin Packaging
-- [ ] Create release workflow (GitHub Actions)
-- [ ] Generate plugin zip for manual install
+### 11.1 GitHub Actions
+- [ ] Create release workflow
+- [ ] Auto-generate plugin zip on tag
 - [ ] Version management
 
 ### 11.2 Community Release
 - [ ] Submit to Obsidian community plugins
-- [ ] Create demo video/GIF
+- [ ] Create demo GIF for README
 
 ### 11.3 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| GitHub Action | Builds and creates release |
-| Manual install | Plugin zip works |
+| Release workflow | Creates valid plugin zip |
+| Manual install | Plugin zip works in Obsidian |
 
 ---
 
 ## Implementation Order
 
 ```
-Phase 0-5 ✅ → Phase 6 (xterm.js) → Phase 7-8 → Phase 9-10 → Phase 11
-                     ▲
-                 YOU ARE HERE
+Phase 0-7 ✅ → Phase 8 → Phase 9 → Phase 10 → Phase 11
+(Core done)   (Runbook)  (Settings) (Docs)    (Release)
+                  ▲
+              YOU ARE HERE
 ```
 
 ---
@@ -364,7 +422,9 @@ Phase 0-5 ✅ → Phase 6 (xterm.js) → Phase 7-8 → Phase 9-10 → Phase 11
 | Language | TypeScript |
 | Plugin API | Obsidian API |
 | Editor | CodeMirror 6 |
-| Execution | Node.js `child_process` |
+| Terminal UI | xterm.js (@xterm/xterm) |
+| PTY | Python 3 pty module |
+| Execution | Node.js `child_process` (fallback) |
 | Build | esbuild |
 | Testing | Vitest |
 
@@ -382,18 +442,25 @@ obsidian-runbook/
 │   └── install.sh
 ├── src/
 │   ├── main.ts
-│   ├── settings.ts
 │   ├── shell/
-│   │   └── session.ts
+│   │   ├── session.ts              # Basic shell (fallback)
+│   │   └── python-pty-session.ts   # Python PTY (primary)
 │   ├── editor/
-│   │   ├── code-block-detector.ts
-│   │   └── execute-decoration.ts
-│   └── types.ts
+│   │   └── code-block.ts
+│   ├── terminal/
+│   │   ├── xterm-view.ts           # xterm.js terminal
+│   │   ├── xterm-styles.ts         # Terminal CSS styles
+│   │   └── dev-console-view.ts     # Developer console
+│   └── ui/
+│       ├── code-block-processor.ts
+│       └── output-container.ts
 ├── tests/
 │   ├── shell/
 │   │   └── session.test.ts
-│   └── editor/
-│       └── code-block-detector.test.ts
+│   ├── editor/
+│   │   └── code-block.test.ts
+│   └── ui/
+│       └── output-container.test.ts
 ├── manifest.json
 ├── package.json
 ├── tsconfig.json
@@ -403,4 +470,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 6 (Real Terminal with xterm.js + node-pty)
+**Status:** Phase 8 (Runbook Features) - Phases 0-7 complete

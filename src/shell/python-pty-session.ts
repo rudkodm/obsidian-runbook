@@ -1,7 +1,6 @@
 import { spawn, ChildProcess, execSync } from "child_process";
 import { EventEmitter } from "events";
 import * as os from "os";
-import * as path from "path";
 import * as fs from "fs";
 
 export type PythonPtyState = "idle" | "alive" | "dead";
@@ -105,6 +104,8 @@ def main():
                                     try:
                                         cols, rows = line.strip().split('x')
                                         set_winsize(pty_fd, int(cols), int(rows))
+                                        # Send SIGWINCH to notify child of resize
+                                        os.kill(pid, signal.SIGWINCH)
                                     except (ValueError, OSError):
                                         pass
                     except OSError:
