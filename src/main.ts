@@ -1,15 +1,21 @@
-import { Editor, Notice, Platform, Plugin } from "obsidian";
+import { Editor, MarkdownView, Notice, Platform, Plugin } from "obsidian";
 import {
 	getCodeBlockContext,
 	getTextToExecute,
 	isLanguageSupported,
+	isShellLanguage,
+	buildInterpreterCommand,
 	advanceCursorToNextLine,
 	stripPromptPrefix,
+	collectCodeBlocks,
+	parseFrontmatter,
+	CodeBlockInfo,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
 import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xterm-view";
 import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
 import { XTERM_STYLES, XTERM_LIB_CSS } from "./terminal/xterm-styles";
+import { SessionManager } from "./runbook/session-manager";
 
 /**
  * Obsidian Runbook Plugin
@@ -20,6 +26,7 @@ export default class RunbookPlugin extends Plugin {
 	private styleEl: HTMLStyleElement | null = null;
 	private statusBarEl: HTMLElement | null = null;
 	private unsubscribeStateChange: (() => void) | null = null;
+	private sessionManager: SessionManager | null = null;
 
 	async onload() {
 		// Desktop-only check
@@ -29,6 +36,9 @@ export default class RunbookPlugin extends Plugin {
 		}
 
 		console.log("Runbook: Plugin loading...");
+
+		// Initialize session manager
+		this.sessionManager = new SessionManager(this.app);
 
 		// Inject styles
 		this.injectStyles();
@@ -55,6 +65,10 @@ export default class RunbookPlugin extends Plugin {
 
 	async onunload() {
 		console.log("Runbook: Plugin unloading...");
+
+		// Cleanup session manager
+		this.sessionManager?.cleanupAll();
+		this.sessionManager = null;
 
 		// Cleanup subscriptions
 		this.unsubscribeStateChange?.();
@@ -111,6 +125,13 @@ export default class RunbookPlugin extends Plugin {
 			id: "open-dev-console",
 			name: "Open developer console",
 			callback: () => this.openDevConsole(),
+		});
+
+		// Run All Cells (execute entire runbook)
+		this.addCommand({
+			id: "run-all",
+			name: "Run all code blocks in current note",
+			callback: () => this.runAllCells(),
 		});
 	}
 
@@ -194,17 +215,26 @@ export default class RunbookPlugin extends Plugin {
 			return;
 		}
 
-		const command = stripPromptPrefix(textInfo.text);
+		const language = context.codeBlock.language;
+		let command: string;
+
+		if (isShellLanguage(language)) {
+			command = stripPromptPrefix(textInfo.text);
+		} else {
+			// For non-shell languages, wrap in interpreter command
+			command = buildInterpreterCommand(textInfo.text, language);
+		}
 
 		try {
-			let xtermView = this.getActiveXtermView();
-			if (!xtermView) {
-				await this.createNewTerminal();
-				await new Promise((resolve) => setTimeout(resolve, 300));
-				xtermView = this.getActiveXtermView();
-			}
+			const xtermView = await this.getOrCreateTerminalForActiveNote();
 
 			if (xtermView) {
+				// Handle per-cell cwd
+				const cwd = context.codeBlock.attributes.cwd;
+				if (cwd) {
+					xtermView.writeCommand(`cd ${cwd}`);
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
 				xtermView.writeCommand(command);
 			} else {
 				new Notice("Failed to create terminal");
@@ -218,6 +248,114 @@ export default class RunbookPlugin extends Plugin {
 			new Notice(`Execution failed: ${err}`);
 			console.error("Runbook: Execution failed", err);
 		}
+	}
+
+	/**
+	 * Get or create a terminal for the currently active note.
+	 * Uses session isolation - each note gets its own terminal.
+	 */
+	private async getOrCreateTerminalForActiveNote(): Promise<XtermView | null> {
+		const activeFile = this.app.workspace.getActiveFile();
+
+		if (activeFile && this.sessionManager) {
+			return this.sessionManager.getOrCreateSession(activeFile.path);
+		}
+
+		// Fallback: use any available terminal or create a new one
+		let xtermView = this.getActiveXtermView();
+		if (!xtermView) {
+			await this.createNewTerminal();
+			await new Promise(resolve => setTimeout(resolve, 300));
+			xtermView = this.getActiveXtermView();
+		}
+		return xtermView;
+	}
+
+	/**
+	 * Run all code blocks in the current note sequentially
+	 */
+	private async runAllCells(): Promise<void> {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!activeView) {
+			new Notice("No active markdown note");
+			return;
+		}
+
+		const file = activeView.file;
+		if (!file) {
+			new Notice("No file associated with current view");
+			return;
+		}
+
+		const content = activeView.editor.getValue();
+		const frontmatter = parseFrontmatter(content);
+		const allBlocks = collectCodeBlocks(content);
+
+		// Filter to supported languages and respect excludeFromRunAll
+		const blocks = allBlocks.filter(block => {
+			if (!isLanguageSupported(block.language)) return false;
+			if (block.attributes.excludeFromRunAll) return false;
+			return true;
+		});
+
+		if (blocks.length === 0) {
+			new Notice("No executable code blocks found in this note");
+			return;
+		}
+
+		// Get or create terminal for this note
+		const xtermView = await this.getOrCreateTerminalForActiveNote();
+		if (!xtermView) {
+			new Notice("Failed to create terminal");
+			return;
+		}
+
+		// Reveal the terminal
+		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
+		for (const leaf of leaves) {
+			if (leaf.view === xtermView) {
+				this.app.workspace.revealLeaf(leaf);
+				break;
+			}
+		}
+
+		new Notice(`Running ${blocks.length} code block(s)...`);
+
+		// Execute blocks sequentially
+		for (let i = 0; i < blocks.length; i++) {
+			const block = blocks[i];
+			const cellName = block.attributes.name || `cell ${i + 1}`;
+
+			// Show progress in terminal
+			xtermView.writeCommand(`echo "--- Running ${cellName} (${i + 1}/${blocks.length}) ---"`);
+			await new Promise(resolve => setTimeout(resolve, 150));
+
+			// Handle per-cell cwd (falls back to frontmatter cwd)
+			const cwd = block.attributes.cwd || frontmatter.cwd;
+			if (cwd) {
+				xtermView.writeCommand(`cd ${cwd}`);
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+
+			// Execute the block
+			if (isShellLanguage(block.language)) {
+				// Shell: execute each line
+				const lines = block.content.split("\n").filter(line => line.trim().length > 0);
+				for (const line of lines) {
+					const command = stripPromptPrefix(line.trim());
+					if (!command) continue;
+					xtermView.writeCommand(command);
+					await new Promise(resolve => setTimeout(resolve, 200));
+				}
+			} else {
+				// Non-shell: wrap entire block in interpreter command
+				const command = buildInterpreterCommand(block.content, block.language);
+				xtermView.writeCommand(command);
+				await new Promise(resolve => setTimeout(resolve, 500));
+			}
+		}
+
+		new Notice(`Finished running ${blocks.length} code block(s)`);
 	}
 
 	/**

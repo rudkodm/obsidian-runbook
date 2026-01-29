@@ -62,10 +62,18 @@ export class XtermView extends ItemView {
 	// Terminal identification
 	private static nextId = 1;
 	readonly terminalId: number;
+	private noteName: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
 		this.terminalId = XtermView.nextId++;
+	}
+
+	/**
+	 * Set the note name for this terminal (used for per-note sessions)
+	 */
+	setNoteName(name: string): void {
+		this.noteName = name;
 	}
 
 	get state(): TerminalState {
@@ -77,6 +85,9 @@ export class XtermView extends ItemView {
 	}
 
 	getDisplayText(): string {
+		if (this.noteName) {
+			return `Terminal: ${this.noteName}`;
+		}
 		return `Terminal ${this.terminalId}`;
 	}
 

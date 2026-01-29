@@ -8,7 +8,13 @@ import {
 	findCodeBlockAtLine,
 	getCodeBlockContext,
 	getTextToExecute,
+	parseCodeBlockAttributes,
+	parseFrontmatter,
+	isShellLanguage,
+	buildInterpreterCommand,
+	collectCodeBlocks,
 	SUPPORTED_LANGUAGES,
+	SHELL_LANGUAGES,
 } from "../../src/editor/code-block";
 
 // Mock Editor for testing
@@ -24,26 +30,35 @@ function createMockEditor(lines: string[], cursorLine: number = 0, selection: st
 
 describe("code-block utilities", () => {
 	describe("isLanguageSupported", () => {
-		it("should accept supported languages", () => {
+		it("should accept supported shell languages", () => {
 			expect(isLanguageSupported("bash")).toBe(true);
 			expect(isLanguageSupported("sh")).toBe(true);
 			expect(isLanguageSupported("zsh")).toBe(true);
 			expect(isLanguageSupported("shell")).toBe(true);
+		});
+
+		it("should accept supported scripting languages", () => {
 			expect(isLanguageSupported("python")).toBe(true);
 			expect(isLanguageSupported("py")).toBe(true);
+			expect(isLanguageSupported("javascript")).toBe(true);
+			expect(isLanguageSupported("js")).toBe(true);
+			expect(isLanguageSupported("typescript")).toBe(true);
+			expect(isLanguageSupported("ts")).toBe(true);
 		});
 
 		it("should reject unsupported languages", () => {
-			expect(isLanguageSupported("javascript")).toBe(false);
 			expect(isLanguageSupported("rust")).toBe(false);
 			expect(isLanguageSupported("go")).toBe(false);
 			expect(isLanguageSupported("")).toBe(false);
+			expect(isLanguageSupported("java")).toBe(false);
 		});
 
 		it("should be case-insensitive", () => {
 			expect(isLanguageSupported("BASH")).toBe(true);
 			expect(isLanguageSupported("Python")).toBe(true);
 			expect(isLanguageSupported("ZSH")).toBe(true);
+			expect(isLanguageSupported("JavaScript")).toBe(true);
+			expect(isLanguageSupported("TypeScript")).toBe(true);
 		});
 
 		it("should handle whitespace", () => {
@@ -53,16 +68,23 @@ describe("code-block utilities", () => {
 	});
 
 	describe("normalizeLanguage", () => {
-		it("should normalize aliases to canonical names", () => {
+		it("should normalize shell aliases to canonical names", () => {
 			expect(normalizeLanguage("sh")).toBe("bash");
 			expect(normalizeLanguage("shell")).toBe("bash");
 			expect(normalizeLanguage("zsh")).toBe("bash");
 			expect(normalizeLanguage("py")).toBe("python");
 		});
 
+		it("should normalize JS/TS aliases", () => {
+			expect(normalizeLanguage("js")).toBe("javascript");
+			expect(normalizeLanguage("ts")).toBe("typescript");
+		});
+
 		it("should keep canonical names as-is", () => {
 			expect(normalizeLanguage("bash")).toBe("bash");
 			expect(normalizeLanguage("python")).toBe("python");
+			expect(normalizeLanguage("javascript")).toBe("javascript");
+			expect(normalizeLanguage("typescript")).toBe("typescript");
 		});
 
 		it("should lowercase the result", () => {
@@ -71,11 +93,37 @@ describe("code-block utilities", () => {
 		});
 	});
 
+	describe("isShellLanguage", () => {
+		it("should return true for shell languages", () => {
+			expect(isShellLanguage("bash")).toBe(true);
+			expect(isShellLanguage("sh")).toBe(true);
+			expect(isShellLanguage("zsh")).toBe(true);
+			expect(isShellLanguage("shell")).toBe(true);
+		});
+
+		it("should return false for non-shell languages", () => {
+			expect(isShellLanguage("python")).toBe(false);
+			expect(isShellLanguage("javascript")).toBe(false);
+			expect(isShellLanguage("typescript")).toBe(false);
+		});
+
+		it("should be case-insensitive", () => {
+			expect(isShellLanguage("BASH")).toBe(true);
+			expect(isShellLanguage("Shell")).toBe(true);
+		});
+	});
+
 	describe("getOpeningFenceInfo", () => {
 		it("should detect backtick fences with language", () => {
-			expect(getOpeningFenceInfo("```bash")).toEqual({ language: "bash" });
-			expect(getOpeningFenceInfo("```python")).toEqual({ language: "python" });
-			expect(getOpeningFenceInfo("```javascript")).toEqual({ language: "javascript" });
+			const result = getOpeningFenceInfo("```bash");
+			expect(result).not.toBeNull();
+			expect(result!.language).toBe("bash");
+			expect(result!.attributes).toEqual({});
+		});
+
+		it("should detect fences with multiple languages", () => {
+			expect(getOpeningFenceInfo("```python")!.language).toBe("python");
+			expect(getOpeningFenceInfo("```javascript")!.language).toBe("javascript");
 		});
 
 		it("should NOT detect backtick fences without language (language required)", () => {
@@ -83,13 +131,13 @@ describe("code-block utilities", () => {
 		});
 
 		it("should detect tilde fences with language", () => {
-			expect(getOpeningFenceInfo("~~~bash")).toEqual({ language: "bash" });
+			expect(getOpeningFenceInfo("~~~bash")!.language).toBe("bash");
 			expect(getOpeningFenceInfo("~~~")).toBeNull(); // language required
 		});
 
 		it("should detect longer fences", () => {
-			expect(getOpeningFenceInfo("````bash")).toEqual({ language: "bash" });
-			expect(getOpeningFenceInfo("~~~~~python")).toEqual({ language: "python" });
+			expect(getOpeningFenceInfo("````bash")!.language).toBe("bash");
+			expect(getOpeningFenceInfo("~~~~~python")!.language).toBe("python");
 		});
 
 		it("should return null for non-fence lines", () => {
@@ -99,8 +147,270 @@ describe("code-block utilities", () => {
 		});
 
 		it("should handle trailing whitespace", () => {
-			expect(getOpeningFenceInfo("```bash  ")).toEqual({ language: "bash" });
+			expect(getOpeningFenceInfo("```bash  ")!.language).toBe("bash");
 			expect(getOpeningFenceInfo("```  ")).toBeNull(); // language required
+		});
+
+		// Phase 8: JSON attributes
+		it("should parse JSON attributes after language", () => {
+			const result = getOpeningFenceInfo('```sh {"name":"setup"}');
+			expect(result).not.toBeNull();
+			expect(result!.language).toBe("sh");
+			expect(result!.attributes.name).toBe("setup");
+		});
+
+		it("should parse multiple JSON attributes", () => {
+			const result = getOpeningFenceInfo('```bash {"name":"deploy","excludeFromRunAll":true,"cwd":"/tmp"}');
+			expect(result).not.toBeNull();
+			expect(result!.language).toBe("bash");
+			expect(result!.attributes.name).toBe("deploy");
+			expect(result!.attributes.excludeFromRunAll).toBe(true);
+			expect(result!.attributes.cwd).toBe("/tmp");
+		});
+
+		it("should return empty attributes when no JSON present", () => {
+			const result = getOpeningFenceInfo("```bash");
+			expect(result!.attributes).toEqual({});
+		});
+
+		it("should ignore invalid JSON gracefully", () => {
+			const result = getOpeningFenceInfo("```bash {invalid json}");
+			expect(result).not.toBeNull();
+			expect(result!.language).toBe("bash");
+			expect(result!.attributes).toEqual({});
+		});
+
+		it("should ignore unknown attributes gracefully (forward-compatible)", () => {
+			const result = getOpeningFenceInfo('```sh {"name":"test","unknownProp":"value"}');
+			expect(result!.attributes.name).toBe("test");
+			expect(result!.attributes["unknownProp"]).toBe("value");
+		});
+	});
+
+	describe("parseCodeBlockAttributes", () => {
+		it("should parse valid JSON attributes", () => {
+			expect(parseCodeBlockAttributes('{"name":"setup"}')).toEqual({ name: "setup" });
+			expect(parseCodeBlockAttributes('{"excludeFromRunAll": true}')).toEqual({ excludeFromRunAll: true });
+			expect(parseCodeBlockAttributes('{"cwd": "/home/user"}')).toEqual({ cwd: "/home/user" });
+		});
+
+		it("should return empty object for empty string", () => {
+			expect(parseCodeBlockAttributes("")).toEqual({});
+			expect(parseCodeBlockAttributes("   ")).toEqual({});
+		});
+
+		it("should return empty object for invalid JSON", () => {
+			expect(parseCodeBlockAttributes("{invalid}")).toEqual({});
+			expect(parseCodeBlockAttributes("not json")).toEqual({});
+		});
+
+		it("should return empty object for non-object JSON", () => {
+			expect(parseCodeBlockAttributes('"just a string"')).toEqual({});
+			expect(parseCodeBlockAttributes("[1, 2, 3]")).toEqual({});
+			expect(parseCodeBlockAttributes("42")).toEqual({});
+		});
+
+		it("should parse complex attributes", () => {
+			const result = parseCodeBlockAttributes('{"name":"deploy","excludeFromRunAll":true,"cwd":"/tmp"}');
+			expect(result.name).toBe("deploy");
+			expect(result.excludeFromRunAll).toBe(true);
+			expect(result.cwd).toBe("/tmp");
+		});
+	});
+
+	describe("parseFrontmatter", () => {
+		it("should parse shell from frontmatter", () => {
+			const content = "---\nshell: /bin/zsh\n---\n# Hello";
+			const config = parseFrontmatter(content);
+			expect(config.shell).toBe("/bin/zsh");
+		});
+
+		it("should parse cwd from frontmatter", () => {
+			const content = "---\ncwd: /home/user/project\n---\n# Hello";
+			const config = parseFrontmatter(content);
+			expect(config.cwd).toBe("/home/user/project");
+		});
+
+		it("should parse multiple frontmatter fields", () => {
+			const content = "---\nshell: /bin/bash\ncwd: /tmp\n---\n# Hello";
+			const config = parseFrontmatter(content);
+			expect(config.shell).toBe("/bin/bash");
+			expect(config.cwd).toBe("/tmp");
+		});
+
+		it("should return empty config when no frontmatter", () => {
+			const config = parseFrontmatter("# Hello\nSome content");
+			expect(config.shell).toBeUndefined();
+			expect(config.cwd).toBeUndefined();
+		});
+
+		it("should handle quoted values", () => {
+			const content = '---\nshell: "/bin/zsh"\ncwd: \'/tmp\'\n---\n# Hello';
+			const config = parseFrontmatter(content);
+			expect(config.shell).toBe("/bin/zsh");
+			expect(config.cwd).toBe("/tmp");
+		});
+
+		it("should be case-insensitive for keys", () => {
+			const content = "---\nShell: /bin/zsh\nCWD: /tmp\n---\n# Hello";
+			const config = parseFrontmatter(content);
+			expect(config.shell).toBe("/bin/zsh");
+			expect(config.cwd).toBe("/tmp");
+		});
+	});
+
+	describe("buildInterpreterCommand", () => {
+		it("should build python3 command", () => {
+			const cmd = buildInterpreterCommand("print('hello')", "python");
+			expect(cmd).toBe("python3 -c 'print('\\''hello'\\'')'");
+		});
+
+		it("should build python3 command for py alias", () => {
+			const cmd = buildInterpreterCommand("print('hello')", "py");
+			expect(cmd).toBe("python3 -c 'print('\\''hello'\\'')'");
+		});
+
+		it("should build node command for javascript", () => {
+			const cmd = buildInterpreterCommand("console.log('hello')", "javascript");
+			expect(cmd).toBe("node -e 'console.log('\\''hello'\\'')'");
+		});
+
+		it("should build node command for js alias", () => {
+			const cmd = buildInterpreterCommand("console.log('hello')", "js");
+			expect(cmd).toBe("node -e 'console.log('\\''hello'\\'')'");
+		});
+
+		it("should build tsx command for typescript", () => {
+			const cmd = buildInterpreterCommand("const x: number = 1", "typescript");
+			expect(cmd).toBe("npx tsx -e 'const x: number = 1'");
+		});
+
+		it("should build tsx command for ts alias", () => {
+			const cmd = buildInterpreterCommand("const x: number = 1", "ts");
+			expect(cmd).toBe("npx tsx -e 'const x: number = 1'");
+		});
+
+		it("should return code as-is for shell languages", () => {
+			expect(buildInterpreterCommand("echo hello", "bash")).toBe("echo hello");
+			expect(buildInterpreterCommand("ls -la", "sh")).toBe("ls -la");
+			expect(buildInterpreterCommand("pwd", "zsh")).toBe("pwd");
+		});
+
+		it("should handle code without single quotes", () => {
+			const cmd = buildInterpreterCommand("console.log(42)", "javascript");
+			expect(cmd).toBe("node -e 'console.log(42)'");
+		});
+	});
+
+	describe("collectCodeBlocks", () => {
+		it("should collect all code blocks from content", () => {
+			const content = [
+				"# My Runbook",
+				"",
+				"```bash",
+				"echo hello",
+				"```",
+				"",
+				"```python",
+				"print('world')",
+				"```",
+			].join("\n");
+
+			const blocks = collectCodeBlocks(content);
+			expect(blocks).toHaveLength(2);
+			expect(blocks[0].language).toBe("bash");
+			expect(blocks[0].content).toBe("echo hello");
+			expect(blocks[1].language).toBe("python");
+			expect(blocks[1].content).toBe("print('world')");
+		});
+
+		it("should parse attributes from code blocks", () => {
+			const content = [
+				'```sh {"name":"setup","cwd":"/tmp"}',
+				"echo setup",
+				"```",
+				"",
+				'```bash {"excludeFromRunAll":true}',
+				"echo excluded",
+				"```",
+			].join("\n");
+
+			const blocks = collectCodeBlocks(content);
+			expect(blocks).toHaveLength(2);
+			expect(blocks[0].attributes.name).toBe("setup");
+			expect(blocks[0].attributes.cwd).toBe("/tmp");
+			expect(blocks[1].attributes.excludeFromRunAll).toBe(true);
+		});
+
+		it("should handle empty content", () => {
+			expect(collectCodeBlocks("")).toHaveLength(0);
+			expect(collectCodeBlocks("# Just a header")).toHaveLength(0);
+		});
+
+		it("should skip unclosed code blocks", () => {
+			const content = [
+				"```bash",
+				"echo hello",
+				"# No closing fence",
+			].join("\n");
+
+			expect(collectCodeBlocks(content)).toHaveLength(0);
+		});
+
+		it("should handle multi-line code blocks", () => {
+			const content = [
+				"```bash",
+				"echo line1",
+				"echo line2",
+				"echo line3",
+				"```",
+			].join("\n");
+
+			const blocks = collectCodeBlocks(content);
+			expect(blocks).toHaveLength(1);
+			expect(blocks[0].content).toBe("echo line1\necho line2\necho line3");
+		});
+
+		it("should collect code blocks with different languages", () => {
+			const content = [
+				"```javascript",
+				"console.log('js')",
+				"```",
+				"",
+				"```typescript",
+				"const x: string = 'ts'",
+				"```",
+				"",
+				"```rust",
+				"fn main() {}",
+				"```",
+			].join("\n");
+
+			const blocks = collectCodeBlocks(content);
+			expect(blocks).toHaveLength(3);
+			expect(blocks[0].language).toBe("javascript");
+			expect(blocks[1].language).toBe("typescript");
+			expect(blocks[2].language).toBe("rust"); // Collected even if not supported
+		});
+
+		it("should set correct line numbers", () => {
+			const content = [
+				"# Header",          // 0
+				"",                   // 1
+				"```bash",           // 2
+				"echo hello",        // 3
+				"```",               // 4
+				"",                   // 5
+				"```python",         // 6
+				"print('world')",    // 7
+				"```",               // 8
+			].join("\n");
+
+			const blocks = collectCodeBlocks(content);
+			expect(blocks[0].startLine).toBe(2);
+			expect(blocks[0].endLine).toBe(4);
+			expect(blocks[1].startLine).toBe(6);
+			expect(blocks[1].endLine).toBe(8);
 		});
 	});
 
@@ -165,6 +475,21 @@ describe("code-block utilities", () => {
 			expect(block?.startLine).toBe(1);
 			expect(block?.endLine).toBe(4);
 			expect(block?.content).toBe("echo hello\necho world");
+			expect(block?.attributes).toEqual({});
+		});
+
+		it("should include attributes from annotated code blocks", () => {
+			const editor = createMockEditor([
+				'```bash {"name":"deploy","cwd":"/tmp"}',
+				"echo deploy",
+				"```",
+			]);
+
+			const block = findCodeBlockAtLine(editor, 1);
+			expect(block).not.toBeNull();
+			expect(block?.language).toBe("bash");
+			expect(block?.attributes.name).toBe("deploy");
+			expect(block?.attributes.cwd).toBe("/tmp");
 		});
 
 		it("should return null when cursor is outside code block", () => {
