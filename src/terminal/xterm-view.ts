@@ -63,6 +63,14 @@ export class XtermView extends ItemView {
 	private static nextId = 1;
 	readonly terminalId: number;
 	private noteName: string | null = null;
+	private initialCwd: string | null = null;
+
+	/**
+	 * Pending config consumed by the next onOpen call.
+	 * Set before setViewState so that onOpen picks it up at spawn time.
+	 * Single-threaded JS guarantees nothing else consumes it in between.
+	 */
+	static pendingCwd: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -96,6 +104,10 @@ export class XtermView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		// Consume pending config (set before setViewState)
+		this.initialCwd = XtermView.pendingCwd;
+		XtermView.pendingCwd = null;
+
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("runbook-xterm-view");
@@ -163,6 +175,7 @@ export class XtermView extends ItemView {
 		this.ptySession = new PythonPtySession({
 			cols: this.terminal!.cols,
 			rows: this.terminal!.rows,
+			cwd: this.initialCwd || undefined,
 		});
 
 		// Connect PTY output to terminal

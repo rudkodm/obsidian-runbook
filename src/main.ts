@@ -229,11 +229,12 @@ export default class RunbookPlugin extends Plugin {
 		}
 
 		try {
-			const xtermView = await this.getOrCreateTerminalForActiveNote();
+			// Pass cwd so new sessions start in the right directory
+			const cwd = context.codeBlock.attributes.cwd;
+			const xtermView = await this.getOrCreateTerminalForActiveNote(cwd);
 
 			if (xtermView) {
-				// Handle per-cell cwd
-				const cwd = context.codeBlock.attributes.cwd;
+				// For existing sessions, cd to per-cell cwd if specified
 				if (cwd) {
 					xtermView.writeCommand(`cd ${cwd}`);
 					await new Promise(resolve => setTimeout(resolve, 100));
@@ -256,12 +257,13 @@ export default class RunbookPlugin extends Plugin {
 	/**
 	 * Get or create a terminal for the currently active note.
 	 * Uses session isolation - each note gets its own terminal.
+	 * @param cwd - Optional working directory for new sessions (used at spawn time)
 	 */
-	private async getOrCreateTerminalForActiveNote(): Promise<XtermView | null> {
+	private async getOrCreateTerminalForActiveNote(cwd?: string): Promise<XtermView | null> {
 		const activeFile = this.app.workspace.getActiveFile();
 
 		if (activeFile && this.sessionManager) {
-			return this.sessionManager.getOrCreateSession(activeFile.path);
+			return this.sessionManager.getOrCreateSession(activeFile.path, cwd);
 		}
 
 		// Fallback: use any available terminal or create a new one
@@ -279,13 +281,14 @@ export default class RunbookPlugin extends Plugin {
 	 * Used by both the play button (code-block-processor) and Run All.
 	 */
 	private async executeCodeBlock(code: string, language: string, attributes: CodeBlockAttributes): Promise<void> {
-		const xtermView = await this.getOrCreateTerminalForActiveNote();
+		// Pass cwd so new sessions start in the right directory
+		const xtermView = await this.getOrCreateTerminalForActiveNote(attributes.cwd);
 		if (!xtermView) {
 			new Notice("Failed to create terminal");
 			return;
 		}
 
-		// Handle per-cell cwd
+		// For existing sessions, cd to per-cell cwd if specified
 		if (attributes.cwd) {
 			xtermView.writeCommand(`cd ${attributes.cwd}`);
 			await new Promise(resolve => setTimeout(resolve, 100));
@@ -339,8 +342,18 @@ export default class RunbookPlugin extends Plugin {
 			return;
 		}
 
-		// Get or create terminal for this note
-		const xtermView = await this.getOrCreateTerminalForActiveNote();
+		// Always create a fresh isolated session for Run All
+		const noteName = file.basename || file.name;
+		const runAllCwd = frontmatter.cwd;
+		let xtermView: XtermView | null = null;
+
+		if (this.sessionManager) {
+			xtermView = await this.sessionManager.createFreshSession(
+				`Run All: ${noteName}`,
+				runAllCwd,
+			);
+		}
+
 		if (!xtermView) {
 			new Notice("Failed to create terminal");
 			return;

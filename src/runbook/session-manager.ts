@@ -18,8 +18,10 @@ export class SessionManager {
 	/**
 	 * Get or create a terminal session for a given note.
 	 * Returns the XtermView associated with the note.
+	 * @param notePath - File path of the note
+	 * @param cwd - Optional initial working directory for new sessions
 	 */
-	async getOrCreateSession(notePath: string): Promise<XtermView | null> {
+	async getOrCreateSession(notePath: string, cwd?: string): Promise<XtermView | null> {
 		// Check if we already have a live session for this note
 		const existingView = this.getSessionForNote(notePath);
 		if (existingView) {
@@ -27,26 +29,27 @@ export class SessionManager {
 		}
 
 		// Create a new terminal for this note
+		return this.createSession(notePath, cwd);
+	}
+
+	/**
+	 * Always create a fresh terminal session (used by Run All for isolation).
+	 */
+	async createFreshSession(label: string, cwd?: string): Promise<XtermView | null> {
 		const leaf = this.app.workspace.getLeaf("split", "horizontal");
 		if (!leaf) return null;
 
+		// Set pending config BEFORE setViewState so onOpen picks it up at spawn time
+		XtermView.pendingCwd = cwd || null;
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
 		const view = leaf.view;
 		if (!view || view.getViewType() !== XTERM_VIEW_TYPE) return null;
 
 		const xtermView = view as unknown as XtermView;
+		xtermView.setNoteName(label);
 
-		// Store the mapping
-		this.noteToView.set(notePath, xtermView);
-
-		// Set display text to note name
-		const noteName = notePath.replace(/\.md$/, "").split("/").pop() || notePath;
-		xtermView.setNoteName(noteName);
-
-		// Wait for terminal to be ready
 		await new Promise(resolve => setTimeout(resolve, 300));
-
 		return xtermView;
 	}
 
@@ -90,5 +93,34 @@ export class SessionManager {
 	 */
 	hasSession(notePath: string): boolean {
 		return this.getSessionForNote(notePath) !== null;
+	}
+
+	/**
+	 * Internal: create a terminal bound to a note path
+	 */
+	private async createSession(notePath: string, cwd?: string): Promise<XtermView | null> {
+		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		if (!leaf) return null;
+
+		// Set pending config BEFORE setViewState so onOpen picks it up at spawn time
+		XtermView.pendingCwd = cwd || null;
+		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
+
+		const view = leaf.view;
+		if (!view || view.getViewType() !== XTERM_VIEW_TYPE) return null;
+
+		const xtermView = view as unknown as XtermView;
+
+		// Store the mapping
+		this.noteToView.set(notePath, xtermView);
+
+		// Set display text to note name
+		const noteName = notePath.replace(/\.md$/, "").split("/").pop() || notePath;
+		xtermView.setNoteName(noteName);
+
+		// Wait for terminal to be ready
+		await new Promise(resolve => setTimeout(resolve, 300));
+
+		return xtermView;
 	}
 }
