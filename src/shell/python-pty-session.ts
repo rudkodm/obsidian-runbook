@@ -40,10 +40,12 @@ def set_winsize(fd, cols, rows):
 def main():
     if len(sys.argv) > 1:
         shell = sys.argv[1]
-        args = sys.argv[1:]
     else:
         shell = os.environ.get('SHELL', '/bin/bash')
-        args = [shell]
+
+    # Start as login shell (-l) so ~/.zprofile and ~/.zshrc are sourced.
+    # This ensures tools like Homebrew, nvm, pyenv are on PATH.
+    args = [shell, '-l']
 
     pid, pty_fd = pty.fork()
 

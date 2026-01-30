@@ -9,6 +9,7 @@ import {
 	stripPromptPrefix,
 	collectCodeBlocks,
 	parseFrontmatter,
+	CodeBlockAttributes,
 	CodeBlockInfo,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
@@ -57,6 +58,8 @@ export default class RunbookPlugin extends Plugin {
 			createCodeBlockProcessor({
 				getTerminalView: () => this.getActiveXtermView(),
 				createTerminal: () => this.createNewTerminal(),
+				executeBlock: (code, language, attributes) =>
+					this.executeCodeBlock(code, language, attributes),
 			})
 		);
 
@@ -130,7 +133,7 @@ export default class RunbookPlugin extends Plugin {
 		// Run All Cells (execute entire runbook)
 		this.addCommand({
 			id: "run-all",
-			name: "Run all code blocks in current note",
+			name: "Run All",
 			callback: () => this.runAllCells(),
 		});
 	}
@@ -269,6 +272,39 @@ export default class RunbookPlugin extends Plugin {
 			xtermView = this.getActiveXtermView();
 		}
 		return xtermView;
+	}
+
+	/**
+	 * Execute a code block with full language-aware routing, cwd, and session isolation.
+	 * Used by both the play button (code-block-processor) and Run All.
+	 */
+	private async executeCodeBlock(code: string, language: string, attributes: CodeBlockAttributes): Promise<void> {
+		const xtermView = await this.getOrCreateTerminalForActiveNote();
+		if (!xtermView) {
+			new Notice("Failed to create terminal");
+			return;
+		}
+
+		// Handle per-cell cwd
+		if (attributes.cwd) {
+			xtermView.writeCommand(`cd ${attributes.cwd}`);
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+
+		if (isShellLanguage(language)) {
+			// Shell: execute each line
+			const lines = code.split("\n").filter(line => line.trim().length > 0);
+			for (const line of lines) {
+				const command = stripPromptPrefix(line.trim());
+				if (!command) continue;
+				xtermView.writeCommand(command);
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+		} else {
+			// Non-shell: wrap entire block in interpreter command
+			const command = buildInterpreterCommand(code, language);
+			xtermView.writeCommand(command);
+		}
 	}
 
 	/**
