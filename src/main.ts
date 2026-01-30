@@ -395,13 +395,30 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
-	 * Toggle terminal panel visibility
+	 * Toggle terminal panel visibility.
+	 * If terminal is focused, switch back to the note.
+	 * If terminal exists but not focused, reveal it.
+	 * If no terminal exists, create one.
 	 */
 	private async toggleTerminal(): Promise<void> {
 		const existing = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 
 		if (existing.length > 0) {
-			existing.forEach((leaf) => leaf.detach());
+			// Check if a terminal is currently the active view
+			const activeView = this.app.workspace.getActiveViewOfType(XtermView);
+
+			if (activeView) {
+				// Terminal is focused — switch back to most recent markdown note
+				const mdLeaves = this.app.workspace.getLeavesOfType("markdown");
+				if (mdLeaves.length > 0) {
+					this.app.workspace.setActiveLeaf(mdLeaves[0], { focus: true });
+				}
+			} else {
+				// Terminal exists but not focused — reveal it
+				this.app.workspace.revealLeaf(existing[0]);
+				const view = existing[0].view as XtermView;
+				view?.focus?.();
+			}
 		} else {
 			await this.createNewTerminal();
 		}

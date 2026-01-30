@@ -1,14 +1,15 @@
-import { App, TFile, WorkspaceLeaf } from "obsidian";
+import { App } from "obsidian";
 import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
 
 /**
  * Manages per-note terminal sessions.
  * Each note gets its own shell session for isolation.
+ * Stores direct XtermView references for reliable session reuse.
  */
 export class SessionManager {
 	private app: App;
-	/** Map of note file path -> workspace leaf ID holding its terminal */
-	private noteToLeafId: Map<string, string> = new Map();
+	/** Map of note file path -> XtermView instance */
+	private noteToView: Map<string, XtermView> = new Map();
 
 	constructor(app: App) {
 		this.app = app;
@@ -19,7 +20,7 @@ export class SessionManager {
 	 * Returns the XtermView associated with the note.
 	 */
 	async getOrCreateSession(notePath: string): Promise<XtermView | null> {
-		// Check if we already have a session for this note
+		// Check if we already have a live session for this note
 		const existingView = this.getSessionForNote(notePath);
 		if (existingView) {
 			return existingView;
@@ -31,44 +32,42 @@ export class SessionManager {
 
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
-		const view = leaf.view as XtermView;
-		if (!view) return null;
+		const view = leaf.view;
+		if (!view || view.getViewType() !== XTERM_VIEW_TYPE) return null;
 
-		// Store the mapping using the leaf's unique ID
-		const leafId = (leaf as any).id || String(Date.now());
-		this.noteToLeafId.set(notePath, leafId);
+		const xtermView = view as unknown as XtermView;
+
+		// Store the mapping
+		this.noteToView.set(notePath, xtermView);
 
 		// Set display text to note name
 		const noteName = notePath.replace(/\.md$/, "").split("/").pop() || notePath;
-		view.setNoteName(noteName);
+		xtermView.setNoteName(noteName);
 
 		// Wait for terminal to be ready
 		await new Promise(resolve => setTimeout(resolve, 300));
 
-		return view;
+		return xtermView;
 	}
 
 	/**
-	 * Get existing terminal session for a note (if any)
+	 * Get existing terminal session for a note (if any).
+	 * Validates the view is still alive in the workspace.
 	 */
 	getSessionForNote(notePath: string): XtermView | null {
-		const leafId = this.noteToLeafId.get(notePath);
-		if (!leafId) return null;
+		const view = this.noteToView.get(notePath);
+		if (!view) return null;
 
-		// Find the leaf by checking all terminal leaves
+		// Check if the view's leaf is still in the workspace
 		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
-		for (const leaf of leaves) {
-			const id = (leaf as any).id || "";
-			if (id === leafId) {
-				const view = leaf.view as XtermView;
-				if (view?.isRunning) {
-					return view;
-				}
-			}
+		const stillAlive = leaves.some(leaf => leaf.view === view);
+
+		if (stillAlive && view.state !== "exited") {
+			return view;
 		}
 
-		// Leaf no longer exists or session is dead - clean up mapping
-		this.noteToLeafId.delete(notePath);
+		// View was closed or session died — clean up
+		this.noteToView.delete(notePath);
 		return null;
 	}
 
@@ -76,39 +75,14 @@ export class SessionManager {
 	 * Clean up session when a note is closed
 	 */
 	cleanupSession(notePath: string): void {
-		const leafId = this.noteToLeafId.get(notePath);
-		if (!leafId) return;
-
-		// Find and detach the terminal leaf
-		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
-		for (const leaf of leaves) {
-			const id = (leaf as any).id || "";
-			if (id === leafId) {
-				leaf.detach();
-				break;
-			}
-		}
-
-		this.noteToLeafId.delete(notePath);
+		this.noteToView.delete(notePath);
 	}
 
 	/**
 	 * Clean up all sessions
 	 */
 	cleanupAll(): void {
-		this.noteToLeafId.clear();
-	}
-
-	/**
-	 * Get the note path associated with a terminal, if any
-	 */
-	getNoteForSession(leafId: string): string | null {
-		for (const [notePath, id] of this.noteToLeafId) {
-			if (id === leafId) {
-				return notePath;
-			}
-		}
-		return null;
+		this.noteToView.clear();
 	}
 
 	/**
