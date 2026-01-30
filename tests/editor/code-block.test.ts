@@ -13,6 +13,8 @@ import {
 	isShellLanguage,
 	buildInterpreterCommand,
 	collectCodeBlocks,
+	getInterpreterType,
+	wrapForRepl,
 	SUPPORTED_LANGUAGES,
 	SHELL_LANGUAGES,
 } from "../../src/editor/code-block";
@@ -701,6 +703,161 @@ describe("code-block utilities", () => {
 			const result = getTextToExecute(editor);
 
 			expect(result?.text).toBe("echo hello");
+		});
+	});
+
+	describe("getInterpreterType", () => {
+		it("should return python for python/py", () => {
+			expect(getInterpreterType("python")).toBe("python");
+			expect(getInterpreterType("py")).toBe("python");
+		});
+
+		it("should return javascript for javascript/js", () => {
+			expect(getInterpreterType("javascript")).toBe("javascript");
+			expect(getInterpreterType("js")).toBe("javascript");
+		});
+
+		it("should return typescript for typescript/ts", () => {
+			expect(getInterpreterType("typescript")).toBe("typescript");
+			expect(getInterpreterType("ts")).toBe("typescript");
+		});
+
+		it("should return null for shell languages", () => {
+			expect(getInterpreterType("bash")).toBeNull();
+			expect(getInterpreterType("sh")).toBeNull();
+			expect(getInterpreterType("zsh")).toBeNull();
+			expect(getInterpreterType("shell")).toBeNull();
+		});
+
+		it("should return null for unknown languages", () => {
+			expect(getInterpreterType("rust")).toBeNull();
+			expect(getInterpreterType("go")).toBeNull();
+		});
+
+		it("should be case-insensitive", () => {
+			expect(getInterpreterType("Python")).toBe("python");
+			expect(getInterpreterType("JAVASCRIPT")).toBe("javascript");
+		});
+	});
+
+	describe("wrapForRepl", () => {
+		it("should wrap python code with exec()", () => {
+			const result = wrapForRepl("x = 42\nprint(x)", "python");
+			expect(result).toContain("exec(");
+			expect(result).toContain("x = 42");
+			expect(result).toContain("print(x)");
+			expect(result).toMatch(/^exec\("""\n/);
+			expect(result).toMatch(/\n"""\)\n$/);
+		});
+
+		it("should wrap python code for py alias", () => {
+			const result = wrapForRepl("print('hello')", "py");
+			expect(result).toContain("exec(");
+			expect(result).toContain("print('hello')");
+		});
+
+		it("should escape backslashes in python code", () => {
+			const result = wrapForRepl("print('a\\nb')", "python");
+			expect(result).toContain("print('a\\\\nb')");
+		});
+
+		it("should escape triple quotes in python code", () => {
+			const result = wrapForRepl('x = """hello"""', "python");
+			// Triple quotes inside should be escaped
+			expect(result).not.toContain('""""""');
+		});
+
+		it("should wrap javascript code with .editor mode", () => {
+			const result = wrapForRepl("const x = 42;\nconsole.log(x);", "javascript");
+			expect(result).toMatch(/^\.editor\n/);
+			expect(result).toContain("const x = 42;");
+			expect(result).toContain("console.log(x);");
+			// Should end with Ctrl-D
+			expect(result).toMatch(/\x04$/);
+		});
+
+		it("should wrap js alias with .editor mode", () => {
+			const result = wrapForRepl("console.log('hi')", "js");
+			expect(result).toMatch(/^\.editor\n/);
+			expect(result).toMatch(/\x04$/);
+		});
+
+		it("should wrap typescript with .editor mode", () => {
+			const result = wrapForRepl("const x: number = 42;", "typescript");
+			expect(result).toMatch(/^\.editor\n/);
+			expect(result).toContain("const x: number = 42;");
+			expect(result).toMatch(/\x04$/);
+		});
+
+		it("should wrap ts alias with .editor mode", () => {
+			const result = wrapForRepl("let y: string = 'hi'", "ts");
+			expect(result).toMatch(/^\.editor\n/);
+			expect(result).toMatch(/\x04$/);
+		});
+
+		it("should fall through to newline-terminated for unknown languages", () => {
+			const result = wrapForRepl("echo hello", "bash");
+			expect(result).toBe("echo hello\n");
+		});
+	});
+
+	describe("interactive/interpreter attributes", () => {
+		it("should parse interactive attribute", () => {
+			const result = parseCodeBlockAttributes('{"interactive": false}');
+			expect(result.interactive).toBe(false);
+		});
+
+		it("should parse interactive: true", () => {
+			const result = parseCodeBlockAttributes('{"interactive": true}');
+			expect(result.interactive).toBe(true);
+		});
+
+		it("should parse interpreter attribute", () => {
+			const result = parseCodeBlockAttributes('{"interpreter": "python3.11"}');
+			expect(result.interpreter).toBe("python3.11");
+		});
+
+		it("should parse both interactive and interpreter together", () => {
+			const result = parseCodeBlockAttributes('{"interactive": false, "interpreter": "/usr/bin/python3"}');
+			expect(result.interactive).toBe(false);
+			expect(result.interpreter).toBe("/usr/bin/python3");
+		});
+
+		it("should parse from fence line with language", () => {
+			const result = getOpeningFenceInfo('```python {"interactive": false, "interpreter": "python3.11"}');
+			expect(result).not.toBeNull();
+			expect(result!.language).toBe("python");
+			expect(result!.attributes.interactive).toBe(false);
+			expect(result!.attributes.interpreter).toBe("python3.11");
+		});
+
+		it("should default interactive to undefined (treated as true)", () => {
+			const result = parseCodeBlockAttributes('{"name": "test"}');
+			expect(result.interactive).toBeUndefined();
+		});
+
+		it("should parse interactive with other attributes", () => {
+			const result = parseCodeBlockAttributes('{"name":"setup","cwd":"/tmp","interactive":false}');
+			expect(result.name).toBe("setup");
+			expect(result.cwd).toBe("/tmp");
+			expect(result.interactive).toBe(false);
+		});
+
+		it("should collect blocks with interactive attribute", () => {
+			const content = [
+				'```python {"interactive": false}',
+				"print('one-shot')",
+				"```",
+				"",
+				"```python",
+				"print('interactive')",
+				"```",
+			].join("\n");
+
+			const blocks = collectCodeBlocks(content);
+			expect(blocks).toHaveLength(2);
+			expect(blocks[0].attributes.interactive).toBe(false);
+			expect(blocks[1].attributes.interactive).toBeUndefined();
 		});
 	});
 });

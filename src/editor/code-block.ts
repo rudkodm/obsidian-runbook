@@ -24,6 +24,10 @@ export interface CodeBlockAttributes {
 	name?: string;
 	excludeFromRunAll?: boolean;
 	cwd?: string;
+	/** Use persistent REPL session (default true for non-shell languages) */
+	interactive?: boolean;
+	/** Override the interpreter command path */
+	interpreter?: string;
 	[key: string]: unknown; // Forward-compatible with unknown attributes
 }
 
@@ -361,6 +365,45 @@ export function buildInterpreterCommand(code: string, language: string): string 
 		default:
 			// Shell languages - return code as-is
 			return code;
+	}
+}
+
+/**
+ * Get the interpreter type for a language (non-shell languages only).
+ * Returns null for shell languages.
+ */
+export function getInterpreterType(language: string): "python" | "javascript" | "typescript" | null {
+	const normalized = normalizeLanguage(language);
+	if (normalized === "python" || normalized === "javascript" || normalized === "typescript") {
+		return normalized;
+	}
+	return null;
+}
+
+/**
+ * Wrap code for execution in an interactive REPL session.
+ * Handles multiline code cleanly for each language.
+ *
+ * Python: uses exec() with triple-quoted string
+ * JavaScript/TypeScript: uses .editor mode (Ctrl-D to finish)
+ */
+export function wrapForRepl(code: string, language: string): string {
+	const normalized = normalizeLanguage(language);
+
+	switch (normalized) {
+		case "python": {
+			// Use exec("""...""") to handle multiline code cleanly.
+			// Escape backslashes first, then triple quotes.
+			const escaped = code.replace(/\\/g, "\\\\").replace(/"""/g, '\\"\\"\\\"');
+			return `exec("""\n${escaped}\n""")\n`;
+		}
+		case "javascript":
+		case "typescript": {
+			// Use .editor mode: paste code, then Ctrl-D to execute
+			return `.editor\n${code}\n\x04`;
+		}
+		default:
+			return code + "\n";
 	}
 }
 

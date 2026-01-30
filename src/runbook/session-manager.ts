@@ -1,46 +1,63 @@
 import { App } from "obsidian";
 import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
+import { InterpreterType } from "../shell/interpreter-session";
+import { normalizeLanguage } from "../editor/code-block";
 
 /**
  * Manages per-note terminal sessions.
  * Each note gets its own shell session for isolation.
+ * Non-shell languages (Python, JS, TS) get their own interpreter REPL sessions.
  * Stores direct XtermView references for reliable session reuse.
  */
 export class SessionManager {
 	private app: App;
-	/** Map of note file path -> XtermView instance */
+	/** Map of note file path -> shell XtermView */
 	private noteToView: Map<string, XtermView> = new Map();
+	/** Map of "notePath:language" -> interpreter XtermView */
+	private interpreterViews: Map<string, XtermView> = new Map();
 
 	constructor(app: App) {
 		this.app = app;
 	}
 
 	/**
-	 * Get or create a terminal session for a given note.
-	 * Returns the XtermView associated with the note.
-	 * @param notePath - File path of the note
-	 * @param cwd - Optional initial working directory for new sessions
+	 * Get or create a shell session for a given note.
 	 */
 	async getOrCreateSession(notePath: string, cwd?: string): Promise<XtermView | null> {
-		// Check if we already have a live session for this note
 		const existingView = this.getSessionForNote(notePath);
 		if (existingView) {
 			return existingView;
 		}
-
-		// Create a new terminal for this note
 		return this.createSession(notePath, cwd);
 	}
 
 	/**
-	 * Always create a fresh terminal session (used by Run All for isolation).
+	 * Get or create an interpreter REPL session for a given note + language.
+	 * Each (note, language) pair gets its own persistent REPL.
+	 */
+	async getOrCreateInterpreterSession(
+		notePath: string,
+		language: string,
+		cwd?: string,
+		interpreterPath?: string,
+	): Promise<XtermView | null> {
+		const key = this.interpreterKey(notePath, language);
+		const existing = this.getInterpreterView(key);
+		if (existing) {
+			return existing;
+		}
+		return this.createInterpreterSession(notePath, language, cwd, interpreterPath);
+	}
+
+	/**
+	 * Always create a fresh shell session (used by Run All for isolation).
 	 */
 	async createFreshSession(label: string, cwd?: string): Promise<XtermView | null> {
 		const leaf = this.app.workspace.getLeaf("split", "horizontal");
 		if (!leaf) return null;
 
-		// Set pending config BEFORE setViewState so onOpen picks it up at spawn time
 		XtermView.pendingCwd = cwd || null;
+		XtermView.pendingInterpreter = null;
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
 		const view = leaf.view;
@@ -54,14 +71,41 @@ export class SessionManager {
 	}
 
 	/**
-	 * Get existing terminal session for a note (if any).
-	 * Validates the view is still alive in the workspace.
+	 * Create a fresh interpreter REPL session (used by Run All for isolation).
+	 */
+	async createFreshInterpreterSession(
+		label: string,
+		language: string,
+		cwd?: string,
+		interpreterPath?: string,
+	): Promise<XtermView | null> {
+		const interpType = this.toInterpreterType(language);
+		if (!interpType) return null;
+
+		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		if (!leaf) return null;
+
+		XtermView.pendingCwd = cwd || null;
+		XtermView.pendingInterpreter = { type: interpType, interpreterPath };
+		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
+
+		const view = leaf.view;
+		if (!view || view.getViewType() !== XTERM_VIEW_TYPE) return null;
+
+		const xtermView = view as unknown as XtermView;
+		xtermView.setNoteName(label);
+
+		await new Promise(resolve => setTimeout(resolve, 300));
+		return xtermView;
+	}
+
+	/**
+	 * Get existing shell session for a note (if any).
 	 */
 	getSessionForNote(notePath: string): XtermView | null {
 		const view = this.noteToView.get(notePath);
 		if (!view) return null;
 
-		// Check if the view's leaf is still in the workspace
 		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		const stillAlive = leaves.some(leaf => leaf.view === view);
 
@@ -69,16 +113,20 @@ export class SessionManager {
 			return view;
 		}
 
-		// View was closed or session died — clean up
 		this.noteToView.delete(notePath);
 		return null;
 	}
 
 	/**
-	 * Clean up session when a note is closed
+	 * Clean up all sessions for a note (shell + interpreters)
 	 */
 	cleanupSession(notePath: string): void {
 		this.noteToView.delete(notePath);
+		for (const key of this.interpreterViews.keys()) {
+			if (key.startsWith(notePath + ":")) {
+				this.interpreterViews.delete(key);
+			}
+		}
 	}
 
 	/**
@@ -86,24 +134,89 @@ export class SessionManager {
 	 */
 	cleanupAll(): void {
 		this.noteToView.clear();
+		this.interpreterViews.clear();
 	}
 
 	/**
-	 * Check if a note has an active session
+	 * Check if a note has an active shell session
 	 */
 	hasSession(notePath: string): boolean {
 		return this.getSessionForNote(notePath) !== null;
 	}
 
+	// --- Private helpers ---
+
+	private interpreterKey(notePath: string, language: string): string {
+		return `${notePath}:${normalizeLanguage(language)}`;
+	}
+
+	private toInterpreterType(language: string): InterpreterType | null {
+		const normalized = normalizeLanguage(language);
+		if (normalized === "python" || normalized === "javascript" || normalized === "typescript") {
+			return normalized;
+		}
+		return null;
+	}
+
 	/**
-	 * Internal: create a terminal bound to a note path
+	 * Get an existing interpreter view, validating it's still alive.
+	 */
+	private getInterpreterView(key: string): XtermView | null {
+		const view = this.interpreterViews.get(key);
+		if (!view) return null;
+
+		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
+		const stillAlive = leaves.some(leaf => leaf.view === view);
+
+		if (stillAlive && view.state !== "exited") {
+			return view;
+		}
+
+		this.interpreterViews.delete(key);
+		return null;
+	}
+
+	/**
+	 * Create a shell terminal bound to a note path
 	 */
 	private async createSession(notePath: string, cwd?: string): Promise<XtermView | null> {
 		const leaf = this.app.workspace.getLeaf("split", "horizontal");
 		if (!leaf) return null;
 
-		// Set pending config BEFORE setViewState so onOpen picks it up at spawn time
 		XtermView.pendingCwd = cwd || null;
+		XtermView.pendingInterpreter = null;
+		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
+
+		const view = leaf.view;
+		if (!view || view.getViewType() !== XTERM_VIEW_TYPE) return null;
+
+		const xtermView = view as unknown as XtermView;
+		this.noteToView.set(notePath, xtermView);
+
+		const noteName = notePath.replace(/\.md$/, "").split("/").pop() || notePath;
+		xtermView.setNoteName(noteName);
+
+		await new Promise(resolve => setTimeout(resolve, 300));
+		return xtermView;
+	}
+
+	/**
+	 * Create an interpreter REPL terminal bound to a note path + language
+	 */
+	private async createInterpreterSession(
+		notePath: string,
+		language: string,
+		cwd?: string,
+		interpreterPath?: string,
+	): Promise<XtermView | null> {
+		const interpType = this.toInterpreterType(language);
+		if (!interpType) return null;
+
+		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		if (!leaf) return null;
+
+		XtermView.pendingCwd = cwd || null;
+		XtermView.pendingInterpreter = { type: interpType, interpreterPath };
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
 		const view = leaf.view;
@@ -111,16 +224,14 @@ export class SessionManager {
 
 		const xtermView = view as unknown as XtermView;
 
-		// Store the mapping
-		this.noteToView.set(notePath, xtermView);
+		const key = this.interpreterKey(notePath, language);
+		this.interpreterViews.set(key, xtermView);
 
-		// Set display text to note name
 		const noteName = notePath.replace(/\.md$/, "").split("/").pop() || notePath;
-		xtermView.setNoteName(noteName);
+		const langLabel = normalizeLanguage(language);
+		xtermView.setNoteName(`${noteName} (${langLabel})`);
 
-		// Wait for terminal to be ready
 		await new Promise(resolve => setTimeout(resolve, 300));
-
 		return xtermView;
 	}
 }

@@ -9,6 +9,8 @@ import {
 	stripPromptPrefix,
 	collectCodeBlocks,
 	parseFrontmatter,
+	getInterpreterType,
+	normalizeLanguage,
 	CodeBlockAttributes,
 	CodeBlockInfo,
 } from "./editor/code-block";
@@ -219,30 +221,40 @@ export default class RunbookPlugin extends Plugin {
 		}
 
 		const language = context.codeBlock.language;
-		let command: string;
-
-		if (isShellLanguage(language)) {
-			command = stripPromptPrefix(textInfo.text);
-		} else {
-			// For non-shell languages, wrap in interpreter command
-			command = buildInterpreterCommand(textInfo.text, language);
-		}
+		const attributes = context.codeBlock.attributes;
+		const isInteractive = attributes.interactive !== false;
+		const cwd = attributes.cwd;
 
 		try {
-			// Pass cwd so new sessions start in the right directory
-			const cwd = context.codeBlock.attributes.cwd;
-			const xtermView = await this.getOrCreateTerminalForActiveNote(cwd);
+			if (!isShellLanguage(language) && isInteractive && getInterpreterType(language)) {
+				// Interactive REPL: send raw code to persistent interpreter session
+				const xtermView = await this.getOrCreateInterpreterForActiveNote(
+					language, cwd, attributes.interpreter,
+				);
+				if (!xtermView) {
+					new Notice("Failed to create interpreter session");
+					return;
+				}
+				xtermView.writeReplCode(textInfo.text, language);
+			} else {
+				// Shell or non-interactive: use shell terminal
+				let command: string;
+				if (isShellLanguage(language)) {
+					command = stripPromptPrefix(textInfo.text);
+				} else {
+					command = buildInterpreterCommand(textInfo.text, language);
+				}
 
-			if (xtermView) {
-				// For existing sessions, cd to per-cell cwd if specified
+				const xtermView = await this.getOrCreateTerminalForActiveNote(cwd);
+				if (!xtermView) {
+					new Notice("Failed to create terminal");
+					return;
+				}
 				if (cwd) {
 					xtermView.writeCommand(`cd ${cwd}`);
 					await new Promise(resolve => setTimeout(resolve, 100));
 				}
 				xtermView.writeCommand(command);
-			} else {
-				new Notice("Failed to create terminal");
-				return;
 			}
 
 			if (!textInfo.isSelection) {
@@ -277,36 +289,65 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
+	 * Get or create an interpreter REPL session for the active note + language.
+	 */
+	private async getOrCreateInterpreterForActiveNote(
+		language: string,
+		cwd?: string,
+		interpreterPath?: string,
+	): Promise<XtermView | null> {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (activeFile && this.sessionManager) {
+			return this.sessionManager.getOrCreateInterpreterSession(
+				activeFile.path, language, cwd, interpreterPath,
+			);
+		}
+		return null;
+	}
+
+	/**
 	 * Execute a code block with full language-aware routing, cwd, and session isolation.
 	 * Used by both the play button (code-block-processor) and Run All.
 	 */
 	private async executeCodeBlock(code: string, language: string, attributes: CodeBlockAttributes): Promise<void> {
-		// Pass cwd so new sessions start in the right directory
-		const xtermView = await this.getOrCreateTerminalForActiveNote(attributes.cwd);
-		if (!xtermView) {
-			new Notice("Failed to create terminal");
-			return;
-		}
+		const isInteractive = attributes.interactive !== false;
+		const isNonShell = !isShellLanguage(language);
 
-		// For existing sessions, cd to per-cell cwd if specified
-		if (attributes.cwd) {
-			xtermView.writeCommand(`cd ${attributes.cwd}`);
-			await new Promise(resolve => setTimeout(resolve, 100));
-		}
+		if (isNonShell && isInteractive && getInterpreterType(language)) {
+			// Interactive REPL: send raw code to persistent interpreter session
+			const xtermView = await this.getOrCreateInterpreterForActiveNote(
+				language, attributes.cwd, attributes.interpreter,
+			);
+			if (!xtermView) {
+				new Notice("Failed to create interpreter session");
+				return;
+			}
+			xtermView.writeReplCode(code, language);
+		} else {
+			// Shell or non-interactive one-shot
+			const xtermView = await this.getOrCreateTerminalForActiveNote(attributes.cwd);
+			if (!xtermView) {
+				new Notice("Failed to create terminal");
+				return;
+			}
 
-		if (isShellLanguage(language)) {
-			// Shell: execute each line
-			const lines = code.split("\n").filter(line => line.trim().length > 0);
-			for (const line of lines) {
-				const command = stripPromptPrefix(line.trim());
-				if (!command) continue;
-				xtermView.writeCommand(command);
+			if (attributes.cwd) {
+				xtermView.writeCommand(`cd ${attributes.cwd}`);
 				await new Promise(resolve => setTimeout(resolve, 100));
 			}
-		} else {
-			// Non-shell: wrap entire block in interpreter command
-			const command = buildInterpreterCommand(code, language);
-			xtermView.writeCommand(command);
+
+			if (isShellLanguage(language)) {
+				const lines = code.split("\n").filter(line => line.trim().length > 0);
+				for (const line of lines) {
+					const command = stripPromptPrefix(line.trim());
+					if (!command) continue;
+					xtermView.writeCommand(command);
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+			} else {
+				const command = buildInterpreterCommand(code, language);
+				xtermView.writeCommand(command);
+			}
 		}
 	}
 
@@ -342,31 +383,36 @@ export default class RunbookPlugin extends Plugin {
 			return;
 		}
 
-		// Always create a fresh isolated session for Run All
+		// Always create fresh isolated sessions for Run All
 		const noteName = file.basename || file.name;
 		const runAllCwd = frontmatter.cwd;
-		let xtermView: XtermView | null = null;
 
-		if (this.sessionManager) {
-			xtermView = await this.sessionManager.createFreshSession(
-				`Run All: ${noteName}`,
-				runAllCwd,
-			);
+		if (!this.sessionManager) {
+			new Notice("Session manager not available");
+			return;
 		}
 
-		if (!xtermView) {
+		// Create fresh shell session for shell blocks / non-interactive blocks
+		const shellView = await this.sessionManager.createFreshSession(
+			`Run All: ${noteName}`,
+			runAllCwd,
+		);
+		if (!shellView) {
 			new Notice("Failed to create terminal");
 			return;
 		}
 
-		// Reveal the terminal
+		// Reveal the shell terminal
 		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		for (const leaf of leaves) {
-			if (leaf.view === xtermView) {
+			if (leaf.view === shellView) {
 				this.app.workspace.revealLeaf(leaf);
 				break;
 			}
 		}
+
+		// Track fresh interpreter sessions per language (created lazily)
+		const interpViews: Map<string, XtermView> = new Map();
 
 		new Notice(`Running ${blocks.length} code block(s)...`);
 
@@ -374,33 +420,60 @@ export default class RunbookPlugin extends Plugin {
 		for (let i = 0; i < blocks.length; i++) {
 			const block = blocks[i];
 			const cellName = block.attributes.name || `cell ${i + 1}`;
+			const isInteractive = block.attributes.interactive !== false;
+			const isNonShell = !isShellLanguage(block.language);
+			const interpType = getInterpreterType(block.language);
+			const cwd = block.attributes.cwd || runAllCwd;
 
-			// Show progress in terminal
-			xtermView.writeCommand(`echo "--- Running ${cellName} (${i + 1}/${blocks.length}) ---"`);
-			await new Promise(resolve => setTimeout(resolve, 150));
-
-			// Handle per-cell cwd (falls back to frontmatter cwd)
-			const cwd = block.attributes.cwd || frontmatter.cwd;
-			if (cwd) {
-				xtermView.writeCommand(`cd ${cwd}`);
-				await new Promise(resolve => setTimeout(resolve, 100));
-			}
-
-			// Execute the block
-			if (isShellLanguage(block.language)) {
-				// Shell: execute each line
-				const lines = block.content.split("\n").filter(line => line.trim().length > 0);
-				for (const line of lines) {
-					const command = stripPromptPrefix(line.trim());
-					if (!command) continue;
-					xtermView.writeCommand(command);
-					await new Promise(resolve => setTimeout(resolve, 200));
+			if (isNonShell && isInteractive && interpType) {
+				// Interactive interpreter: route to per-language REPL
+				const langKey = normalizeLanguage(block.language);
+				let interpView = interpViews.get(langKey);
+				if (!interpView) {
+					interpView = await this.sessionManager.createFreshInterpreterSession(
+						`Run All: ${noteName} (${langKey})`,
+						block.language,
+						cwd,
+						block.attributes.interpreter as string | undefined,
+					);
+					if (!interpView) {
+						new Notice(`Failed to create ${langKey} interpreter session`);
+						continue;
+					}
+					interpViews.set(langKey, interpView);
+					// Wait for REPL to be ready
+					await new Promise(resolve => setTimeout(resolve, 500));
 				}
-			} else {
-				// Non-shell: wrap entire block in interpreter command
-				const command = buildInterpreterCommand(block.content, block.language);
-				xtermView.writeCommand(command);
+
+				// Show progress in shell terminal
+				shellView.writeCommand(`echo "--- Running ${cellName} (${i + 1}/${blocks.length}) [${langKey}] ---"`);
+				await new Promise(resolve => setTimeout(resolve, 100));
+
+				interpView.writeReplCode(block.content, block.language);
 				await new Promise(resolve => setTimeout(resolve, 500));
+			} else {
+				// Shell or non-interactive one-shot: use shell terminal
+				shellView.writeCommand(`echo "--- Running ${cellName} (${i + 1}/${blocks.length}) ---"`);
+				await new Promise(resolve => setTimeout(resolve, 150));
+
+				if (cwd) {
+					shellView.writeCommand(`cd ${cwd}`);
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+
+				if (isShellLanguage(block.language)) {
+					const lines = block.content.split("\n").filter(line => line.trim().length > 0);
+					for (const line of lines) {
+						const command = stripPromptPrefix(line.trim());
+						if (!command) continue;
+						shellView.writeCommand(command);
+						await new Promise(resolve => setTimeout(resolve, 200));
+					}
+				} else {
+					const command = buildInterpreterCommand(block.content, block.language);
+					shellView.writeCommand(command);
+					await new Promise(resolve => setTimeout(resolve, 500));
+				}
 			}
 		}
 

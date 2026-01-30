@@ -4,6 +4,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { PythonPtySession } from "../shell/python-pty-session";
 import { ShellSession } from "../shell/session";
+import { InterpreterSession, InterpreterType } from "../shell/interpreter-session";
+import { wrapForRepl } from "../editor/code-block";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
 
@@ -47,6 +49,7 @@ export class XtermView extends ItemView {
 	private terminal: Terminal | null = null;
 	private fitAddon: FitAddon | null = null;
 	private ptySession: PythonPtySession | null = null;
+	private interpreterSession: InterpreterSession | null = null;
 	private fallbackSession: ShellSession | null = null;
 	private terminalEl: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
@@ -65,12 +68,16 @@ export class XtermView extends ItemView {
 	private noteName: string | null = null;
 	private initialCwd: string | null = null;
 
+	// Interpreter session config (set via pendingInterpreter before onOpen)
+	private interpreterConfig: { type: InterpreterType; interpreterPath?: string } | null = null;
+
 	/**
 	 * Pending config consumed by the next onOpen call.
 	 * Set before setViewState so that onOpen picks it up at spawn time.
 	 * Single-threaded JS guarantees nothing else consumes it in between.
 	 */
 	static pendingCwd: string | null = null;
+	static pendingInterpreter: { type: InterpreterType; interpreterPath?: string } | null = null;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -107,6 +114,8 @@ export class XtermView extends ItemView {
 		// Consume pending config (set before setViewState)
 		this.initialCwd = XtermView.pendingCwd;
 		XtermView.pendingCwd = null;
+		this.interpreterConfig = XtermView.pendingInterpreter;
+		XtermView.pendingInterpreter = null;
 
 		const container = this.contentEl;
 		container.empty();
@@ -151,13 +160,23 @@ export class XtermView extends ItemView {
 	}
 
 	/**
-	 * Start the shell session (PTY or fallback)
+	 * Whether this view hosts an interpreter REPL (vs a shell)
+	 */
+	get isInterpreterSession(): boolean {
+		return this.interpreterSession !== null;
+	}
+
+	/**
+	 * Start the session (interpreter REPL, shell PTY, or fallback)
 	 */
 	private async startSession(): Promise<void> {
 		this.setState("starting");
 
-		// Check if Python PTY is available (Unix with Python 3) or use fallback
-		if (PythonPtySession.isAvailable()) {
+		if (this.interpreterConfig) {
+			// Interpreter REPL mode
+			await this.initInterpreterSession();
+		} else if (PythonPtySession.isAvailable()) {
+			// Shell PTY mode
 			await this.initPythonPtySession();
 		} else {
 			console.log("Runbook: Python PTY not available, using fallback shell");
@@ -209,6 +228,60 @@ export class XtermView extends ItemView {
 			console.error("Runbook: Failed to spawn Python PTY, falling back:", err);
 			this.ptySession = null;
 			await this.initFallbackSession();
+		}
+	}
+
+	/**
+	 * Initialize an interactive interpreter REPL session (python3, node, ts-node)
+	 */
+	private async initInterpreterSession(): Promise<void> {
+		this.usingFallback = false;
+
+		this.interpreterSession = new InterpreterSession({
+			type: this.interpreterConfig!.type,
+			cols: this.terminal!.cols,
+			rows: this.terminal!.rows,
+			cwd: this.initialCwd || undefined,
+			interpreterPath: this.interpreterConfig!.interpreterPath,
+		});
+
+		// Connect interpreter output to terminal
+		this.interpreterSession.on("data", (data: string) => {
+			this.terminal?.write(data);
+		});
+
+		// Connect terminal input to interpreter
+		this.terminal!.onData((data: string) => {
+			if (this.interpreterSession?.isAlive) {
+				this.interpreterSession.write(data);
+			}
+		});
+
+		// Handle interpreter exit
+		this.interpreterSession.on("exit", (code: number) => {
+			this.handleSessionExit(code);
+		});
+
+		// Handle interpreter errors
+		this.interpreterSession.on("error", (err: Error) => {
+			this.handleSessionError(err);
+		});
+
+		try {
+			this.interpreterSession.spawn();
+			this.setState("running");
+			console.log(
+				`Runbook: Interpreter (${this.interpreterConfig!.type}) spawned, pid:`,
+				this.interpreterSession.pid,
+			);
+		} catch (err) {
+			console.error("Runbook: Failed to spawn interpreter session:", err);
+			this.interpreterSession = null;
+			// For interpreter failures, don't fall back to shell — show error
+			this.terminal?.write(
+				`\r\n\x1b[31m[Failed to start ${this.interpreterConfig!.type} interpreter: ${err}]\x1b[0m\r\n`,
+			);
+			this.setState("error");
 		}
 	}
 
@@ -315,8 +388,10 @@ export class XtermView extends ItemView {
 	async restartSession(): Promise<void> {
 		// Clean up existing sessions
 		this.ptySession?.kill();
+		this.interpreterSession?.kill();
 		this.fallbackSession?.kill();
 		this.ptySession = null;
+		this.interpreterSession = null;
 		this.fallbackSession = null;
 
 		this.terminal?.write("\r\n");
@@ -364,11 +439,13 @@ export class XtermView extends ItemView {
 		// Clean up
 		this.resizeObserver?.disconnect();
 		this.ptySession?.kill();
+		this.interpreterSession?.kill();
 		this.fallbackSession?.kill();
 		this.terminal?.dispose();
 
 		this.resizeObserver = null;
 		this.ptySession = null;
+		this.interpreterSession = null;
 		this.fallbackSession = null;
 		this.terminal = null;
 		this.terminalEl = null;
@@ -418,7 +495,9 @@ export class XtermView extends ItemView {
 			this.lastCols = cols;
 			this.lastRows = rows;
 
-			if (this.ptySession?.isAlive && !this.usingFallback) {
+			if (this.interpreterSession?.isAlive) {
+				this.interpreterSession.resize(cols, rows);
+			} else if (this.ptySession?.isAlive && !this.usingFallback) {
 				this.ptySession.resize(cols, rows);
 			}
 		}
@@ -439,7 +518,7 @@ export class XtermView extends ItemView {
 	}
 
 	/**
-	 * Write text to the terminal (for code block execution)
+	 * Write a command to the terminal (shell commands, interpreter one-shot commands)
 	 */
 	writeCommand(command: string): void {
 		if (this.usingFallback) {
@@ -447,19 +526,29 @@ export class XtermView extends ItemView {
 			if (!this.fallbackSession?.isAlive) {
 				throw new Error("Shell session not running");
 			}
-			// Clear current line, show prompt with command, then execute
 			this.terminal?.write(`\r${ANSI.CLEAR_LINE}${ANSI.GREEN}$${ANSI.RESET} ${command}\r\n`);
 			this.executeInFallback(command);
-		} else {
-			// PTY mode - write directly
-			if (!this.ptySession) {
-				throw new Error("No PTY session available");
-			}
-			if (!this.ptySession.isAlive) {
-				throw new Error("PTY session not running");
-			}
+		} else if (this.interpreterSession?.isAlive) {
+			// Interpreter mode - write directly to REPL
+			this.interpreterSession.write(command + "\n");
+		} else if (this.ptySession?.isAlive) {
+			// Shell PTY mode - write directly
 			this.ptySession.write(command + "\n");
+		} else {
+			throw new Error("No session available");
 		}
+	}
+
+	/**
+	 * Write code to an interpreter REPL with language-appropriate wrapping.
+	 * Uses exec() for Python, .editor mode for Node/TS.
+	 */
+	writeReplCode(code: string, language: string): void {
+		if (!this.interpreterSession?.isAlive) {
+			throw new Error("No interpreter session available");
+		}
+		const wrapped = wrapForRepl(code, language);
+		this.interpreterSession.write(wrapped);
 	}
 
 	/**
