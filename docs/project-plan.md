@@ -293,7 +293,7 @@ All validation tests passed:
 
 ---
 
-## Phase 8: Runbook Features ✅ COMPLETE
+## Phase 8: Runbook Features ✅ COMPLETE (8.1–8.6) | 8.7 IN PROGRESS
 
 **Core features to make this a true "Runbook" tool.**
 **Compatibility:** Adopts [Runme](https://runme.dev) code block annotation syntax
@@ -352,6 +352,70 @@ so notebooks are portable between Obsidian Runbook and Runme (VS Code).
 | Isolation | Two notes run in separate sessions ✅ |
 | Run All | Command executes all blocks in order ✅ |
 | excludeFromRunAll | Skipped blocks are not executed ✅ |
+
+---
+
+### 8.7 Native Interactive Interpreter Sessions
+
+**Goal:** Preserve state across code blocks for non-shell languages by spawning
+persistent REPL sessions (one per language per note) instead of one-shot
+`python3 -c` / `node -e` commands.
+
+#### 8.7.1 InterpreterSession Class
+- [ ] Create `src/shell/interpreter-session.ts`
+- [ ] Spawn interactive REPLs via Python PTY (`python3`, `node`, `npx tsx`)
+- [ ] Same interface as PythonPtySession (data, exit, error events; write, resize, kill)
+- [ ] Support configurable interpreter path (override via attribute or settings)
+- [ ] Use `exec("""...""")` wrapping for Python to avoid multiline / prompt issues
+- [ ] Node REPL: use `.editor` mode or `eval()` wrapping for multi-line blocks
+
+#### 8.7.2 Language-Aware Session Management
+- [ ] Extend SessionManager key from `notePath` to `notePath + language`
+- [ ] Per-note session set: shell session + optional Python / Node / TS sessions
+- [ ] `getOrCreateSession(notePath, language, cwd)` routes to correct session type
+- [ ] Lazy creation: interpreter session only spawned on first use of that language
+- [ ] Cleanup: kill all interpreter sessions when note session is cleaned up
+- [ ] Terminal tab label: `Terminal: noteName (python)`, `Terminal: noteName (node)`
+
+#### 8.7.3 Execution Routing Update
+- [ ] Shell blocks → shell PTY (unchanged)
+- [ ] Python blocks → Python REPL session (raw code, no `python3 -c` wrapping)
+- [ ] JS blocks → Node REPL session
+- [ ] TS blocks → tsx REPL session (or Node with ts transpile)
+- [ ] Run All respects per-block language, routing each to correct session
+- [ ] Remove `buildInterpreterCommand` one-shot wrapping for interactive languages
+
+#### 8.7.4 Code Block Annotations
+- [ ] `interactive` attribute (boolean, default `true`): use persistent REPL
+- [ ] `interactive: false` → one-shot execution (current `python3 -c` behavior)
+- [ ] `interpreter` attribute: override interpreter path per block
+- [ ] Example: ` ```python {"interactive": false, "interpreter": "python3.11"} `
+
+#### 8.7.5 REPL Input Handling
+- [ ] Python: wrap code in `exec("""...""")` to handle multiline cleanly
+- [ ] Node: use `.editor` mode or `void eval(...)` for multiline blocks
+- [ ] Suppress/handle REPL prompt echo in terminal output
+- [ ] Detect interpreter exit and offer restart
+
+#### 8.7.6 Unit Tests
+- [ ] InterpreterSession spawn / write / kill tests
+- [ ] Language-aware session manager routing tests
+- [ ] `interactive` attribute parsing tests
+- [ ] `interpreter` attribute parsing tests
+- [ ] REPL wrapping logic tests (exec / eval)
+
+#### 8.7.7 Verification Criteria
+
+| Test | Pass Condition |
+|------|----------------|
+| Python state | Block 1 sets `x=42`, Block 2 reads `x` |
+| Node state | Block 1 defines `const y=1`, Block 2 reads `y` |
+| TS state | Block 1 defines typed var, Block 2 reads it |
+| interactive:false | One-shot, no state preserved |
+| interpreter attr | Custom interpreter path used |
+| Mixed languages | Shell + Python blocks route to correct sessions |
+| Run All | Blocks route to correct REPL per language |
+| Session cleanup | All REPLs killed on note close |
 
 ---
 
@@ -415,8 +479,9 @@ so notebooks are portable between Obsidian Runbook and Runme (VS Code).
 ## Implementation Order
 
 ```
-Phase 0-8 ✅ → Phase 9 → Phase 10 → Phase 11
-(Core + Runbook) (Settings) (Docs)    (Release)
+Phase 0-8.6 ✅ → Phase 8.7 → Phase 9 → Phase 10 → Phase 11
+(Core + Runbook)  (Native    (Settings) (Docs)    (Release)
+                   REPLs)
                     ▲
                 YOU ARE HERE
 ```
@@ -480,4 +545,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 9 (Settings & Configuration) - Phases 0-8 complete
+**Status:** Phase 8.7 (Native Interactive Interpreter Sessions) - Phases 0-8.6 complete
