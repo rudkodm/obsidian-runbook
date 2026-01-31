@@ -158,7 +158,7 @@ export class SessionManager {
 				return this.app.workspace.createLeafInParent(parent, -1);
 			}
 		}
-		return this.getTerminalLeaf();
+		return this.app.workspace.getLeaf("split", "horizontal");
 	}
 
 	// --- Private helpers ---
