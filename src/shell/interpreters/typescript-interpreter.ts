@@ -5,8 +5,8 @@ import { InterpreterType } from "../types";
  * TypeScript interactive interpreter session.
  * Spawns a persistent ts-node REPL in a PTY.
  *
- * Code wrapping uses the same .editor mode as Node.js since ts-node's REPL
- * is built on top of Node's REPL infrastructure.
+ * Code is sent line by line, same as Node.js. ts-node's REPL is built on
+ * Node's REPL infrastructure and handles multiline via brace/paren matching.
  */
 export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	constructor(options: InterpreterSessionOptions = {}) {
@@ -27,9 +27,15 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 
 	/**
 	 * Wrap code for ts-node REPL execution.
-	 * Uses .editor mode: paste code, then Ctrl-D to execute.
+	 * Sends raw lines — the REPL handles multiline via brace/paren matching.
 	 */
 	wrapCode(code: string): string {
-		return `.editor\n${code}\n\x04`;
+		const lines = code.split("\n");
+		let result = "";
+		for (const line of lines) {
+			if (line.trim() === "") continue;
+			result += line + "\n";
+		}
+		return result;
 	}
 }

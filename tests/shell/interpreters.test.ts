@@ -111,21 +111,26 @@ describe("NodeInterpreterSession", () => {
 	});
 
 	describe("wrapCode", () => {
-		it("should wrap code with .editor mode", () => {
+		it("should send raw lines", () => {
 			const result = session.wrapCode("const x = 42;\nconsole.log(x);");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toContain("const x = 42;");
-			expect(result).toContain("console.log(x);");
+			expect(result).toBe("const x = 42;\nconsole.log(x);\n");
 		});
 
-		it("should end with Ctrl-D", () => {
+		it("should not use .editor mode", () => {
 			const result = session.wrapCode("console.log('hi')");
-			expect(result).toMatch(/\x04$/);
+			expect(result).not.toContain(".editor");
+			expect(result).not.toContain("\x04");
 		});
 
-		it("should handle single-line code", () => {
-			const result = session.wrapCode("console.log(42)");
-			expect(result).toBe(".editor\nconsole.log(42)\n\x04");
+		it("should skip blank lines", () => {
+			const result = session.wrapCode("const x = 1;\n\nconst y = 2;");
+			expect(result).toBe("const x = 1;\nconst y = 2;\n");
+		});
+
+		it("should handle multiline with braces", () => {
+			const code = "items.forEach((item, i) => {\n    console.log(item);\n});";
+			const result = session.wrapCode(code);
+			expect(result).toBe("items.forEach((item, i) => {\n    console.log(item);\n});\n");
 		});
 	});
 });
@@ -144,15 +149,15 @@ describe("TypeScriptInterpreterSession", () => {
 	});
 
 	describe("wrapCode", () => {
-		it("should wrap code with .editor mode", () => {
+		it("should send raw lines", () => {
 			const result = session.wrapCode("const x: number = 42;");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toContain("const x: number = 42;");
+			expect(result).toBe("const x: number = 42;\n");
 		});
 
-		it("should end with Ctrl-D", () => {
+		it("should not use .editor mode", () => {
 			const result = session.wrapCode("let y: string = 'hi'");
-			expect(result).toMatch(/\x04$/);
+			expect(result).not.toContain(".editor");
+			expect(result).not.toContain("\x04");
 		});
 	});
 });

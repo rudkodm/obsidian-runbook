@@ -5,8 +5,8 @@ import { InterpreterType } from "../types";
  * Node.js interactive interpreter session.
  * Spawns a persistent node REPL in a PTY.
  *
- * Code wrapping uses Node's .editor mode which accepts multiline input
- * terminated by Ctrl-D (EOT character).
+ * Code is sent line by line. Node's REPL automatically detects incomplete
+ * statements (open braces, parens, brackets) and waits for completion.
  */
 export class NodeInterpreterSession extends BaseInterpreterSession {
 	constructor(options: InterpreterSessionOptions = {}) {
@@ -27,9 +27,15 @@ export class NodeInterpreterSession extends BaseInterpreterSession {
 
 	/**
 	 * Wrap code for Node REPL execution.
-	 * Uses .editor mode: paste code, then Ctrl-D to execute.
+	 * Sends raw lines — the REPL handles multiline via brace/paren matching.
 	 */
 	wrapCode(code: string): string {
-		return `.editor\n${code}\n\x04`;
+		const lines = code.split("\n");
+		let result = "";
+		for (const line of lines) {
+			if (line.trim() === "") continue;
+			result += line + "\n";
+		}
+		return result;
 	}
 }
