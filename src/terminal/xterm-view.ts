@@ -347,13 +347,19 @@ export class XtermView extends ItemView {
 	}
 
 	/**
-	 * Handle session exit - show message and optionally restart
+	 * Handle session exit - show message and optionally restart.
+	 * Interpreter sessions never auto-restart to avoid infinite loops
+	 * when the interpreter crashes immediately (e.g. bad tsconfig).
 	 */
 	private handleSessionExit(code: number): void {
 		this.setState("exited");
 		this.terminal?.write(`\r\n${ANSI.YELLOW}[Process exited with code ${code}]${ANSI.RESET}\r\n`);
 
-		if (this.autoRestart) {
+		if (this.interpreterSession) {
+			// Interpreter sessions: never auto-restart, offer manual restart
+			this.terminal?.write(`${ANSI.GRAY}Press Enter to restart${ANSI.RESET}\r\n`);
+			this.setupRestartOnEnter();
+		} else if (this.autoRestart) {
 			this.terminal?.write(`${ANSI.GRAY}Restarting shell...${ANSI.RESET}\r\n`);
 			// Small delay before restart
 			setTimeout(() => {

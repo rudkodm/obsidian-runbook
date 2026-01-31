@@ -23,10 +23,13 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	}
 
 	protected getCommand(): { command: string; args: string[] } {
-		// -T (--transpileOnly) skips ts-node's full type-checker setup which
+		// --skipProject: ignore the project's tsconfig.json which may have
+		// incompatible settings (e.g. module: "NodeNext" without matching
+		// moduleResolution), causing ts-node to crash on startup.
+		// -T (--transpileOnly): skip ts-node's type-checker setup which
 		// generates broken `declare import` statements for newer Node.js
 		// built-ins (node:sea, node:sqlite, node:test), crashing the REPL.
-		return { command: "npx", args: ["ts-node", "-T"] };
+		return { command: "npx", args: ["ts-node", "--skipProject", "-T"] };
 	}
 
 	/**
