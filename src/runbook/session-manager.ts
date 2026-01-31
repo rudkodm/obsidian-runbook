@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, WorkspaceLeaf } from "obsidian";
 import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
 import { InterpreterType } from "../shell/types";
 import { normalizeLanguage } from "../editor/code-block";
@@ -53,7 +53,7 @@ export class SessionManager {
 	 * Always create a fresh shell session (used by Run All for isolation).
 	 */
 	async createFreshSession(label: string, cwd?: string): Promise<XtermView | null> {
-		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		const leaf = this.getTerminalLeaf();
 		if (!leaf) return null;
 
 		XtermView.pendingCwd = cwd || null;
@@ -82,7 +82,7 @@ export class SessionManager {
 		const interpType = this.toInterpreterType(language);
 		if (!interpType) return null;
 
-		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		const leaf = this.getTerminalLeaf();
 		if (!leaf) return null;
 
 		XtermView.pendingCwd = cwd || null;
@@ -144,6 +144,23 @@ export class SessionManager {
 		return this.getSessionForNote(notePath) !== null;
 	}
 
+	/**
+	 * Get a workspace leaf for a new terminal.
+	 * If terminals already exist, creates a tab in the same pane.
+	 * Otherwise creates a new horizontal split at the bottom.
+	 */
+	getTerminalLeaf(): WorkspaceLeaf {
+		const existing = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
+		if (existing.length > 0) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const parent = (existing[0] as any).parent;
+			if (parent) {
+				return this.app.workspace.createLeafInParent(parent, -1);
+			}
+		}
+		return this.getTerminalLeaf();
+	}
+
 	// --- Private helpers ---
 
 	private interpreterKey(notePath: string, language: string): string {
@@ -180,7 +197,7 @@ export class SessionManager {
 	 * Create a shell terminal bound to a note path
 	 */
 	private async createSession(notePath: string, cwd?: string): Promise<XtermView | null> {
-		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		const leaf = this.getTerminalLeaf();
 		if (!leaf) return null;
 
 		XtermView.pendingCwd = cwd || null;
@@ -212,7 +229,7 @@ export class SessionManager {
 		const interpType = this.toInterpreterType(language);
 		if (!interpType) return null;
 
-		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		const leaf = this.getTerminalLeaf();
 		if (!leaf) return null;
 
 		XtermView.pendingCwd = cwd || null;

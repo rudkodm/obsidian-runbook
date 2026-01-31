@@ -514,7 +514,9 @@ export default class RunbookPlugin extends Plugin {
 	 * Create a new terminal session
 	 */
 	private async createNewTerminal(): Promise<void> {
-		const leaf = this.app.workspace.getLeaf("split", "horizontal");
+		const leaf = this.sessionManager
+			? this.sessionManager.getTerminalLeaf()
+			: this.app.workspace.getLeaf("split", "horizontal");
 		if (leaf) {
 			await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 			this.app.workspace.revealLeaf(leaf);
