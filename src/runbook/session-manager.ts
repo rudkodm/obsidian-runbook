@@ -1,6 +1,6 @@
 import { App } from "obsidian";
 import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
-import { InterpreterType } from "../shell/interpreter-session";
+import { InterpreterType } from "../shell/types";
 import { normalizeLanguage } from "../editor/code-block";
 
 /**
@@ -228,8 +228,7 @@ export class SessionManager {
 		this.interpreterViews.set(key, xtermView);
 
 		const noteName = notePath.replace(/\.md$/, "").split("/").pop() || notePath;
-		const langLabel = normalizeLanguage(language);
-		xtermView.setNoteName(`${noteName} (${langLabel})`);
+		xtermView.setNoteName(noteName);
 
 		await new Promise(resolve => setTimeout(resolve, 300));
 		return xtermView;

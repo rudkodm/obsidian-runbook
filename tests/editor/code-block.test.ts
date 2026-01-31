@@ -14,7 +14,6 @@ import {
 	buildInterpreterCommand,
 	collectCodeBlocks,
 	getInterpreterType,
-	wrapForRepl,
 	SUPPORTED_LANGUAGES,
 	SHELL_LANGUAGES,
 } from "../../src/editor/code-block";
@@ -737,67 +736,6 @@ describe("code-block utilities", () => {
 		it("should be case-insensitive", () => {
 			expect(getInterpreterType("Python")).toBe("python");
 			expect(getInterpreterType("JAVASCRIPT")).toBe("javascript");
-		});
-	});
-
-	describe("wrapForRepl", () => {
-		it("should wrap python code with exec()", () => {
-			const result = wrapForRepl("x = 42\nprint(x)", "python");
-			expect(result).toContain("exec(");
-			expect(result).toContain("x = 42");
-			expect(result).toContain("print(x)");
-			expect(result).toMatch(/^exec\("""\n/);
-			expect(result).toMatch(/\n"""\)\n$/);
-		});
-
-		it("should wrap python code for py alias", () => {
-			const result = wrapForRepl("print('hello')", "py");
-			expect(result).toContain("exec(");
-			expect(result).toContain("print('hello')");
-		});
-
-		it("should escape backslashes in python code", () => {
-			const result = wrapForRepl("print('a\\nb')", "python");
-			expect(result).toContain("print('a\\\\nb')");
-		});
-
-		it("should escape triple quotes in python code", () => {
-			const result = wrapForRepl('x = """hello"""', "python");
-			// Triple quotes inside should be escaped
-			expect(result).not.toContain('""""""');
-		});
-
-		it("should wrap javascript code with .editor mode", () => {
-			const result = wrapForRepl("const x = 42;\nconsole.log(x);", "javascript");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toContain("const x = 42;");
-			expect(result).toContain("console.log(x);");
-			// Should end with Ctrl-D
-			expect(result).toMatch(/\x04$/);
-		});
-
-		it("should wrap js alias with .editor mode", () => {
-			const result = wrapForRepl("console.log('hi')", "js");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toMatch(/\x04$/);
-		});
-
-		it("should wrap typescript with .editor mode", () => {
-			const result = wrapForRepl("const x: number = 42;", "typescript");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toContain("const x: number = 42;");
-			expect(result).toMatch(/\x04$/);
-		});
-
-		it("should wrap ts alias with .editor mode", () => {
-			const result = wrapForRepl("let y: string = 'hi'", "ts");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toMatch(/\x04$/);
-		});
-
-		it("should fall through to newline-terminated for unknown languages", () => {
-			const result = wrapForRepl("echo hello", "bash");
-			expect(result).toBe("echo hello\n");
 		});
 	});
 

@@ -4,8 +4,9 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { PythonPtySession } from "../shell/python-pty-session";
 import { ShellSession } from "../shell/session";
-import { InterpreterSession, InterpreterType } from "../shell/interpreter-session";
-import { wrapForRepl } from "../editor/code-block";
+import { InterpreterType } from "../shell/types";
+import { BaseInterpreterSession } from "../shell/interpreter-base";
+import { createInterpreterSession } from "../shell/interpreters";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
 
@@ -49,7 +50,7 @@ export class XtermView extends ItemView {
 	private terminal: Terminal | null = null;
 	private fitAddon: FitAddon | null = null;
 	private ptySession: PythonPtySession | null = null;
-	private interpreterSession: InterpreterSession | null = null;
+	private interpreterSession: BaseInterpreterSession | null = null;
 	private fallbackSession: ShellSession | null = null;
 	private terminalEl: HTMLElement | null = null;
 	private resizeObserver: ResizeObserver | null = null;
@@ -89,6 +90,9 @@ export class XtermView extends ItemView {
 	 */
 	setNoteName(name: string): void {
 		this.noteName = name;
+		// Trigger Obsidian to refresh the tab/header text
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(this.leaf as any).updateHeader?.();
 	}
 
 	get state(): TerminalState {
@@ -100,10 +104,13 @@ export class XtermView extends ItemView {
 	}
 
 	getDisplayText(): string {
+		const typeLabel = this.interpreterSession
+			? this.interpreterSession.displayName
+			: "Terminal";
 		if (this.noteName) {
-			return `Terminal: ${this.noteName}`;
+			return `${typeLabel}: ${this.noteName}`;
 		}
-		return `Terminal ${this.terminalId}`;
+		return `${typeLabel} ${this.terminalId}`;
 	}
 
 	getIcon(): string {
@@ -237,8 +244,7 @@ export class XtermView extends ItemView {
 	private async initInterpreterSession(): Promise<void> {
 		this.usingFallback = false;
 
-		this.interpreterSession = new InterpreterSession({
-			type: this.interpreterConfig!.type,
+		this.interpreterSession = createInterpreterSession(this.interpreterConfig!.type, {
 			cols: this.terminal!.cols,
 			rows: this.terminal!.rows,
 			cwd: this.initialCwd || undefined,
@@ -270,6 +276,9 @@ export class XtermView extends ItemView {
 		try {
 			this.interpreterSession.spawn();
 			this.setState("running");
+			// Update header now that interpreterSession is set (affects getDisplayText)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(this.leaf as any).updateHeader?.();
 			console.log(
 				`Runbook: Interpreter (${this.interpreterConfig!.type}) spawned, pid:`,
 				this.interpreterSession.pid,
@@ -541,13 +550,13 @@ export class XtermView extends ItemView {
 
 	/**
 	 * Write code to an interpreter REPL with language-appropriate wrapping.
-	 * Uses exec() for Python, .editor mode for Node/TS.
+	 * Delegates to the interpreter session's wrapCode() for language-specific formatting.
 	 */
-	writeReplCode(code: string, language: string): void {
+	writeReplCode(code: string): void {
 		if (!this.interpreterSession?.isAlive) {
 			throw new Error("No interpreter session available");
 		}
-		const wrapped = wrapForRepl(code, language);
+		const wrapped = this.interpreterSession.wrapCode(code);
 		this.interpreterSession.write(wrapped);
 	}
 

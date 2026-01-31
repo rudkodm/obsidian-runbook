@@ -2,18 +2,9 @@ import { spawn, ChildProcess, execSync } from "child_process";
 import { EventEmitter } from "events";
 import * as os from "os";
 import * as fs from "fs";
-
-/** Supported interactive interpreter types */
-export type InterpreterType = "python" | "javascript" | "typescript";
-
-/** Interpreter command configuration */
-export interface InterpreterConfig {
-	command: string;
-	args: string[];
-}
+import { SessionState, InterpreterType, IInterpreterSession } from "./types";
 
 export interface InterpreterSessionOptions {
-	type: InterpreterType;
 	cwd?: string;
 	env?: Record<string, string>;
 	cols?: number;
@@ -23,17 +14,11 @@ export interface InterpreterSessionOptions {
 	interpreterPath?: string;
 }
 
-/** Default interpreter configurations for each language */
-export const DEFAULT_INTERPRETERS: Record<InterpreterType, InterpreterConfig> = {
-	python: { command: "python3", args: [] },
-	javascript: { command: "node", args: [] },
-	typescript: { command: "npx", args: ["ts-node"] },
-};
-
 /**
- * Embedded Python PTY helper that spawns an arbitrary command.
- * Unlike the shell PTY helper, this does NOT add -l (login shell) flag.
- * The command to run is passed as argv[1:].
+ * Embedded Python PTY helper that spawns an arbitrary command through a login shell.
+ * Uses $SHELL -l -c "exec <cmd>" to ensure PATH from shell profiles is available.
+ * This allows interpreters like node, npx, python3 to be found even when
+ * installed via Homebrew, nvm, pyenv, etc.
  */
 const INTERPRETER_PTY_SCRIPT = `
 import sys
@@ -44,6 +29,7 @@ import struct
 import fcntl
 import termios
 import signal
+import shlex
 
 STDIN = sys.stdin.fileno()
 STDOUT = sys.stdout.fileno()
@@ -63,10 +49,15 @@ def main():
         print("No command specified", file=sys.stderr)
         sys.exit(1)
 
+    # Spawn through login shell to inherit PATH from shell profiles
+    shell = os.environ.get('SHELL', '/bin/bash')
+    full_cmd = ' '.join(shlex.quote(c) for c in cmd)
+    args = [shell, '-l', '-c', 'exec ' + full_cmd]
+
     pid, pty_fd = pty.fork()
 
     if pid == 0:
-        os.execvp(cmd[0], cmd)
+        os.execvp(shell, args)
         sys.exit(1)
 
     set_nonblocking(STDIN)
@@ -144,25 +135,42 @@ if __name__ == '__main__':
     main()
 `;
 
-export type InterpreterState = "idle" | "alive" | "dead";
-
 /**
- * Interactive interpreter session using Python's pty module.
- * Spawns a persistent REPL (python3, node, ts-node) in a real PTY.
+ * Abstract base class for interactive interpreter sessions.
+ * Spawns a persistent REPL in a real PTY via Python's pty module.
  * State is preserved across code block executions within the same session.
+ *
+ * Subclasses provide language-specific command configuration and code wrapping.
+ * To add a new interpreter, extend this class and implement:
+ *   - interpreterType (identifier)
+ *   - displayName (UI label)
+ *   - getCommand() (interpreter command + args)
+ *   - wrapCode() (REPL-specific code formatting)
  */
-export class InterpreterSession extends EventEmitter {
+export abstract class BaseInterpreterSession extends EventEmitter implements IInterpreterSession {
 	private process: ChildProcess | null = null;
 	private cmdio: fs.WriteStream | null = null;
-	private _state: InterpreterState = "idle";
-	private options: InterpreterSessionOptions;
+	private _state: SessionState = "idle";
+	protected options: InterpreterSessionOptions;
 
-	constructor(options: InterpreterSessionOptions) {
+	constructor(options: InterpreterSessionOptions = {}) {
 		super();
 		this.options = options;
 	}
 
-	get state(): InterpreterState {
+	/** The interpreter type identifier */
+	abstract get interpreterType(): InterpreterType;
+
+	/** Human-readable display name for the UI */
+	abstract get displayName(): string;
+
+	/** Get the default command and args to spawn the interpreter */
+	protected abstract getCommand(): { command: string; args: string[] };
+
+	/** Wrap code for execution in this interpreter's REPL */
+	abstract wrapCode(code: string): string;
+
+	get state(): SessionState {
 		return this._state;
 	}
 
@@ -172,20 +180,6 @@ export class InterpreterSession extends EventEmitter {
 
 	get isAlive(): boolean {
 		return this._state === "alive";
-	}
-
-	get interpreterType(): InterpreterType {
-		return this.options.type;
-	}
-
-	/**
-	 * Get the interpreter command + args for this session
-	 */
-	private getInterpreterConfig(): InterpreterConfig {
-		if (this.options.interpreterPath) {
-			return { command: this.options.interpreterPath, args: [] };
-		}
-		return DEFAULT_INTERPRETERS[this.options.type];
 	}
 
 	/**
@@ -218,7 +212,7 @@ export class InterpreterSession extends EventEmitter {
 		if (platform !== "darwin" && platform !== "linux") {
 			return false;
 		}
-		return InterpreterSession.findPython() !== null;
+		return BaseInterpreterSession.findPython() !== null;
 	}
 
 	/**
@@ -229,12 +223,12 @@ export class InterpreterSession extends EventEmitter {
 			throw new Error("Interpreter session already running. Call kill() first.");
 		}
 
-		const pythonPath = this.options.pythonPath || InterpreterSession.findPython();
+		const pythonPath = this.options.pythonPath || BaseInterpreterSession.findPython();
 		if (!pythonPath) {
 			throw new Error("Python 3 not found (needed for PTY). Please install Python 3.");
 		}
 
-		const config = this.getInterpreterConfig();
+		const config = this.getResolvedCommand();
 
 		const env: Record<string, string> = {
 			...(process.env as Record<string, string>),
@@ -326,7 +320,17 @@ export class InterpreterSession extends EventEmitter {
 		}
 	}
 
-	private setState(state: InterpreterState): void {
+	/**
+	 * Get the resolved command, respecting interpreterPath override
+	 */
+	private getResolvedCommand(): { command: string; args: string[] } {
+		if (this.options.interpreterPath) {
+			return { command: this.options.interpreterPath, args: [] };
+		}
+		return this.getCommand();
+	}
+
+	private setState(state: SessionState): void {
 		if (this._state !== state) {
 			this._state = state;
 			this.emit("stateChange", state);

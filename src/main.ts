@@ -235,7 +235,7 @@ export default class RunbookPlugin extends Plugin {
 					new Notice("Failed to create interpreter session");
 					return;
 				}
-				xtermView.writeReplCode(textInfo.text, language);
+				xtermView.writeReplCode(textInfo.text);
 			} else {
 				// Shell or non-interactive: use shell terminal
 				let command: string;
@@ -322,7 +322,7 @@ export default class RunbookPlugin extends Plugin {
 				new Notice("Failed to create interpreter session");
 				return;
 			}
-			xtermView.writeReplCode(code, language);
+			xtermView.writeReplCode(code);
 		} else {
 			// Shell or non-interactive one-shot
 			const xtermView = await this.getOrCreateTerminalForActiveNote(attributes.cwd);
@@ -449,7 +449,7 @@ export default class RunbookPlugin extends Plugin {
 				shellView.writeCommand(`echo "--- Running ${cellName} (${i + 1}/${blocks.length}) [${langKey}] ---"`);
 				await new Promise(resolve => setTimeout(resolve, 100));
 
-				interpView.writeReplCode(block.content, block.language);
+				interpView.writeReplCode(block.content);
 				await new Promise(resolve => setTimeout(resolve, 500));
 			} else {
 				// Shell or non-interactive one-shot: use shell terminal
