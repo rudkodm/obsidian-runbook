@@ -149,15 +149,21 @@ describe("TypeScriptInterpreterSession", () => {
 	});
 
 	describe("wrapCode", () => {
-		it("should send raw lines", () => {
+		it("should use .editor mode", () => {
 			const result = session.wrapCode("const x: number = 42;");
-			expect(result).toBe("const x: number = 42;\n");
+			expect(result).toMatch(/^\.editor\n/);
+			expect(result).toContain("const x: number = 42;");
 		});
 
-		it("should not use .editor mode", () => {
+		it("should end with Ctrl-D", () => {
 			const result = session.wrapCode("let y: string = 'hi'");
-			expect(result).not.toContain(".editor");
-			expect(result).not.toContain("\x04");
+			expect(result).toMatch(/\x04$/);
+		});
+
+		it("should wrap multiline code", () => {
+			const code = "interface Foo {\n    bar: number;\n}\nconst f: Foo = { bar: 1 };";
+			const result = session.wrapCode(code);
+			expect(result).toBe(`.editor\n${code}\n\x04`);
 		});
 	});
 });
