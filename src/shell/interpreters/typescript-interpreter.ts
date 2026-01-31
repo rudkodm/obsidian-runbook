@@ -23,7 +23,10 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	}
 
 	protected getCommand(): { command: string; args: string[] } {
-		return { command: "npx", args: ["ts-node"] };
+		// -T (--transpileOnly) skips ts-node's full type-checker setup which
+		// generates broken `declare import` statements for newer Node.js
+		// built-ins (node:sea, node:sqlite, node:test), crashing the REPL.
+		return { command: "npx", args: ["ts-node", "-T"] };
 	}
 
 	/**
