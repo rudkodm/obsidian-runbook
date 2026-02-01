@@ -149,21 +149,26 @@ describe("TypeScriptInterpreterSession", () => {
 	});
 
 	describe("wrapCode", () => {
-		it("should use .editor mode", () => {
+		it("should send raw lines", () => {
 			const result = session.wrapCode("const x: number = 42;");
-			expect(result).toMatch(/^\.editor\n/);
-			expect(result).toContain("const x: number = 42;");
+			expect(result).toBe("const x: number = 42;\n");
 		});
 
-		it("should end with Ctrl-D", () => {
+		it("should not use .editor mode", () => {
 			const result = session.wrapCode("let y: string = 'hi'");
-			expect(result).toMatch(/\x04$/);
+			expect(result).not.toContain(".editor");
+			expect(result).not.toContain("\x04");
 		});
 
-		it("should wrap multiline code", () => {
+		it("should skip blank lines", () => {
+			const result = session.wrapCode("const x: number = 1;\n\nconst y: number = 2;");
+			expect(result).toBe("const x: number = 1;\nconst y: number = 2;\n");
+		});
+
+		it("should handle multiline with braces", () => {
 			const code = "interface Foo {\n    bar: number;\n}\nconst f: Foo = { bar: 1 };";
 			const result = session.wrapCode(code);
-			expect(result).toBe(`.editor\n${code}\n\x04`);
+			expect(result).toBe("interface Foo {\n    bar: number;\n}\nconst f: Foo = { bar: 1 };\n");
 		});
 	});
 });
