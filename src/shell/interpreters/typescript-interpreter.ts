@@ -23,6 +23,13 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 				// broken `declare import` statements for newer Node.js built-ins
 				// (node:sea, node:sqlite, node:test).
 				TS_NODE_TRANSPILE_ONLY: "true",
+				// TS_NODE_COMPILER_OPTIONS: force safe compiler settings so the
+				// REPL works even if TS_NODE_SKIP_PROJECT is ignored. Overrides
+				// any conflicting tsconfig.json settings picked up from cwd.
+				TS_NODE_COMPILER_OPTIONS: JSON.stringify({
+					module: "commonjs",
+					moduleResolution: "node",
+				}),
 			},
 		});
 	}
