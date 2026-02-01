@@ -11,7 +11,20 @@ import { InterpreterType } from "../types";
  */
 export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	constructor(options: InterpreterSessionOptions = {}) {
-		super(options);
+		super({
+			...options,
+			env: {
+				...options.env,
+				// TS_NODE_SKIP_PROJECT: ignore the project's tsconfig.json which
+				// may have incompatible settings (e.g. module: "NodeNext" without
+				// matching moduleResolution), crashing ts-node on startup.
+				TS_NODE_SKIP_PROJECT: "true",
+				// TS_NODE_TRANSPILE_ONLY: skip type-checker setup which generates
+				// broken `declare import` statements for newer Node.js built-ins
+				// (node:sea, node:sqlite, node:test).
+				TS_NODE_TRANSPILE_ONLY: "true",
+			},
+		});
 	}
 
 	get interpreterType(): InterpreterType {
@@ -23,13 +36,7 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	}
 
 	protected getCommand(): { command: string; args: string[] } {
-		// --skipProject: ignore the project's tsconfig.json which may have
-		// incompatible settings (e.g. module: "NodeNext" without matching
-		// moduleResolution), causing ts-node to crash on startup.
-		// -T (--transpileOnly): skip ts-node's type-checker setup which
-		// generates broken `declare import` statements for newer Node.js
-		// built-ins (node:sea, node:sqlite, node:test), crashing the REPL.
-		return { command: "npx", args: ["ts-node", "--skipProject", "-T"] };
+		return { command: "npx", args: ["ts-node"] };
 	}
 
 	/**
