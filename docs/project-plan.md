@@ -433,35 +433,35 @@ persistent REPL sessions (one per language per note) instead of one-shot
 
 ---
 
-## Phase 9: Settings & Configuration
+## Phase 9: Settings & Configuration ✅ COMPLETE
 
 ### 9.1 Plugin Settings Tab
-- [ ] Create settings tab UI (`src/settings.ts`)
-- [ ] Define `RunbookSettings` interface with defaults
-- [ ] Load/save settings via `plugin.loadData()` / `plugin.saveData()`
+- [x] Create settings tab UI (`src/settings.ts`)
+- [x] Define `RunbookSettings` interface with defaults
+- [x] Load/save settings via `plugin.loadData()` / `plugin.saveData()`
 
 ### 9.2 Interpreter & Shell Paths
-- [ ] Default shell path override (current: `$SHELL` or `/bin/bash`)
-- [ ] Python interpreter path (default: `python3`)
-- [ ] Node.js interpreter path (default: `node`)
-- [ ] TypeScript interpreter path (default: `npx ts-node`)
-- [ ] Wire settings into `createInterpreterSession()` and `PythonPtySession`
+- [x] Default shell path override (current: `$SHELL` or `/bin/bash`)
+- [x] Python interpreter path (default: `python3`)
+- [x] Node.js interpreter path (default: `node`)
+- [x] TypeScript interpreter path (default: `npx ts-node`)
+- [x] Wire settings into `createInterpreterSession()` and `PythonPtySession`
 
 ### 9.3 Terminal Appearance
-- [ ] Terminal font size (default: `13`)
+- [x] Terminal font size (default: `13`)
 
 ### 9.4 Editor Behavior
-- [ ] Auto-advance cursor toggle (default: `true`)
+- [x] Auto-advance cursor toggle (default: `true`)
 
 ### 9.5 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Settings tab | All options visible and functional |
-| Shell override | Uses configured shell path |
-| Interpreter paths | Python/Node/TS use configured paths |
-| Font size | Terminal respects configured font size |
-| Auto-advance | Cursor advance respects toggle |
+| Settings tab | ✅ All options visible and functional |
+| Shell override | ✅ Uses configured shell path |
+| Interpreter paths | ✅ Python/Node/TS use configured paths |
+| Font size | ✅ Terminal respects configured font size |
+| Auto-advance | ✅ Cursor advance respects toggle |
 
 ---
 

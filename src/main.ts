@@ -19,6 +19,7 @@ import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xt
 import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
 import { XTERM_STYLES, XTERM_LIB_CSS } from "./terminal/xterm-styles";
 import { SessionManager } from "./runbook/session-manager";
+import { RunbookSettings, DEFAULT_SETTINGS, RunbookSettingsTab } from "./settings";
 
 /**
  * Obsidian Runbook Plugin
@@ -26,6 +27,7 @@ import { SessionManager } from "./runbook/session-manager";
  * Executes code blocks directly from markdown notes using a real terminal (xterm.js + Python PTY).
  */
 export default class RunbookPlugin extends Plugin {
+	settings: RunbookSettings = DEFAULT_SETTINGS;
 	private styleEl: HTMLStyleElement | null = null;
 	private statusBarEl: HTMLElement | null = null;
 	private unsubscribeStateChange: (() => void) | null = null;
@@ -40,8 +42,11 @@ export default class RunbookPlugin extends Plugin {
 
 		console.log("Runbook: Plugin loading...");
 
+		// Load settings
+		await this.loadSettings();
+
 		// Initialize session manager
-		this.sessionManager = new SessionManager(this.app);
+		this.sessionManager = new SessionManager(this.app, this.settings);
 
 		// Inject styles
 		this.injectStyles();
@@ -65,7 +70,18 @@ export default class RunbookPlugin extends Plugin {
 			})
 		);
 
+		// Add settings tab
+		this.addSettingTab(new RunbookSettingsTab(this.app, this));
+
 		console.log("Runbook: Plugin loaded successfully");
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 
 	async onunload() {
@@ -257,7 +273,7 @@ export default class RunbookPlugin extends Plugin {
 				xtermView.writeCommand(command);
 			}
 
-			if (!textInfo.isSelection) {
+			if (!textInfo.isSelection && this.settings.autoAdvanceCursor) {
 				advanceCursorToNextLine(editor);
 			}
 		} catch (err) {
