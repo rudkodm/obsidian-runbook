@@ -2,6 +2,7 @@ import { App, WorkspaceLeaf } from "obsidian";
 import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
 import { InterpreterType } from "../shell/types";
 import { normalizeLanguage } from "../editor/code-block";
+import { RunbookSettings } from "../settings";
 
 /**
  * Manages per-note terminal sessions.
@@ -11,13 +12,15 @@ import { normalizeLanguage } from "../editor/code-block";
  */
 export class SessionManager {
 	private app: App;
+	private settings: RunbookSettings;
 	/** Map of note file path -> shell XtermView */
 	private noteToView: Map<string, XtermView> = new Map();
 	/** Map of "notePath:language" -> interpreter XtermView */
 	private interpreterViews: Map<string, XtermView> = new Map();
 
-	constructor(app: App) {
+	constructor(app: App, settings: RunbookSettings) {
 		this.app = app;
+		this.settings = settings;
 	}
 
 	/**
@@ -57,6 +60,8 @@ export class SessionManager {
 		if (!leaf) return null;
 
 		XtermView.pendingCwd = cwd || null;
+		XtermView.pendingShellPath = this.settings.shellPath || null;
+		XtermView.pendingFontSize = this.settings.terminalFontSize;
 		XtermView.pendingInterpreter = null;
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
@@ -85,8 +90,13 @@ export class SessionManager {
 		const leaf = this.getTerminalLeaf();
 		if (!leaf) return null;
 
+		// Resolve interpreter path from settings if not provided
+		const resolvedPath = this.resolveInterpreterPath(interpType, interpreterPath);
+
 		XtermView.pendingCwd = cwd || null;
-		XtermView.pendingInterpreter = { type: interpType, interpreterPath };
+		XtermView.pendingShellPath = this.settings.shellPath || null;
+		XtermView.pendingFontSize = this.settings.terminalFontSize;
+		XtermView.pendingInterpreter = { type: interpType, interpreterPath: resolvedPath };
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
 		const view = leaf.view;
@@ -176,6 +186,29 @@ export class SessionManager {
 	}
 
 	/**
+	 * Resolve interpreter path from settings, falling back to defaults.
+	 * Block-level interpreter attribute takes precedence over settings.
+	 */
+	private resolveInterpreterPath(interpType: InterpreterType, blockLevelPath?: string): string | undefined {
+		// Block-level path takes precedence
+		if (blockLevelPath) {
+			return blockLevelPath;
+		}
+
+		// Use settings-configured paths
+		switch (interpType) {
+			case "python":
+				return this.settings.pythonPath;
+			case "javascript":
+				return this.settings.nodePath;
+			case "typescript":
+				return this.settings.typescriptPath;
+			default:
+				return undefined;
+		}
+	}
+
+	/**
 	 * Get an existing interpreter view, validating it's still alive.
 	 */
 	private getInterpreterView(key: string): XtermView | null {
@@ -201,6 +234,8 @@ export class SessionManager {
 		if (!leaf) return null;
 
 		XtermView.pendingCwd = cwd || null;
+		XtermView.pendingShellPath = this.settings.shellPath || null;
+		XtermView.pendingFontSize = this.settings.terminalFontSize;
 		XtermView.pendingInterpreter = null;
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
@@ -232,8 +267,13 @@ export class SessionManager {
 		const leaf = this.getTerminalLeaf();
 		if (!leaf) return null;
 
+		// Resolve interpreter path from settings if not provided
+		const resolvedPath = this.resolveInterpreterPath(interpType, interpreterPath);
+
 		XtermView.pendingCwd = cwd || null;
-		XtermView.pendingInterpreter = { type: interpType, interpreterPath };
+		XtermView.pendingShellPath = this.settings.shellPath || null;
+		XtermView.pendingFontSize = this.settings.terminalFontSize;
+		XtermView.pendingInterpreter = { type: interpType, interpreterPath: resolvedPath };
 		await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
 
 		const view = leaf.view;

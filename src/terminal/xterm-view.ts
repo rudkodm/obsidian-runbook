@@ -71,6 +71,8 @@ export class XtermView extends ItemView {
 
 	// Interpreter session config (set via pendingInterpreter before onOpen)
 	private interpreterConfig: { type: InterpreterType; interpreterPath?: string } | null = null;
+	private shellPath: string | null = null;
+	private fontSize: number = 13;
 
 	/**
 	 * Pending config consumed by the next onOpen call.
@@ -78,6 +80,8 @@ export class XtermView extends ItemView {
 	 * Single-threaded JS guarantees nothing else consumes it in between.
 	 */
 	static pendingCwd: string | null = null;
+	static pendingShellPath: string | null = null;
+	static pendingFontSize: number = 13;
 	static pendingInterpreter: { type: InterpreterType; interpreterPath?: string } | null = null;
 
 	constructor(leaf: WorkspaceLeaf) {
@@ -121,6 +125,10 @@ export class XtermView extends ItemView {
 		// Consume pending config (set before setViewState)
 		this.initialCwd = XtermView.pendingCwd;
 		XtermView.pendingCwd = null;
+		this.shellPath = XtermView.pendingShellPath;
+		XtermView.pendingShellPath = null;
+		this.fontSize = XtermView.pendingFontSize;
+		XtermView.pendingFontSize = 13;
 		this.interpreterConfig = XtermView.pendingInterpreter;
 		XtermView.pendingInterpreter = null;
 
@@ -134,7 +142,7 @@ export class XtermView extends ItemView {
 		// Initialize xterm.js
 		this.terminal = new Terminal({
 			cursorBlink: true,
-			fontSize: 13,
+			fontSize: this.fontSize,
 			fontFamily: "var(--font-monospace), Menlo, Monaco, 'Courier New', monospace",
 			theme: this.getTheme(),
 			allowProposedApi: true,
@@ -202,6 +210,7 @@ export class XtermView extends ItemView {
 			cols: this.terminal!.cols,
 			rows: this.terminal!.rows,
 			cwd: this.initialCwd || undefined,
+			shell: this.shellPath || undefined,
 		});
 
 		// Connect PTY output to terminal
