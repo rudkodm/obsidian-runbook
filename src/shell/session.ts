@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import * as os from "os";
+import { getDefaultShell } from "./utils";
 
 export interface ShellSessionOptions {
 	shell?: string;
@@ -62,10 +63,7 @@ export class ShellSession extends EventEmitter {
 	 * Detect the default shell for the current platform
 	 */
 	static getDefaultShell(): string {
-		if (os.platform() === "win32") {
-			return process.env.COMSPEC || "cmd.exe";
-		}
-		return process.env.SHELL || "/bin/bash";
+		return getDefaultShell();
 	}
 
 	/**

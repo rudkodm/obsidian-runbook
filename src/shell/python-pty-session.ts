@@ -1,7 +1,7 @@
-import { spawn, ChildProcess, execSync } from "child_process";
+import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
-import * as os from "os";
 import * as fs from "fs";
+import { PYTHON_PTY_SCRIPT, findPython, isPtyAvailable, getDefaultShell } from "./utils";
 
 export type PythonPtyState = "idle" | "alive" | "dead";
 
@@ -13,121 +13,6 @@ export interface PythonPtyOptions {
 	rows?: number;
 	pythonPath?: string;
 }
-
-// Embedded Python PTY helper script
-const PTY_HELPER_SCRIPT = `
-import sys
-import os
-import pty
-import select
-import struct
-import fcntl
-import termios
-import signal
-
-STDIN = sys.stdin.fileno()
-STDOUT = sys.stdout.fileno()
-CMDIO = 3
-
-def set_nonblocking(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-def set_winsize(fd, cols, rows):
-    winsize = struct.pack('HHHH', rows, cols, 0, 0)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
-
-def main():
-    if len(sys.argv) > 1:
-        shell = sys.argv[1]
-    else:
-        shell = os.environ.get('SHELL', '/bin/bash')
-
-    # Start as login shell (-l) so ~/.zprofile and ~/.zshrc are sourced.
-    # This ensures tools like Homebrew, nvm, pyenv are on PATH.
-    args = [shell, '-l']
-
-    pid, pty_fd = pty.fork()
-
-    if pid == 0:
-        os.execvp(shell, args)
-        sys.exit(1)
-
-    set_nonblocking(STDIN)
-    set_nonblocking(pty_fd)
-
-    has_cmdio = False
-    try:
-        set_nonblocking(CMDIO)
-        has_cmdio = True
-    except OSError:
-        pass
-
-    read_fds = [STDIN, pty_fd]
-    if has_cmdio:
-        read_fds.append(CMDIO)
-
-    cmd_buffer = ""
-
-    try:
-        while True:
-            try:
-                readable, _, _ = select.select(read_fds, [], [], 0.1)
-            except select.error:
-                break
-
-            for fd in readable:
-                if fd == pty_fd:
-                    try:
-                        data = os.read(pty_fd, 4096)
-                        if not data:
-                            return
-                        os.write(STDOUT, data)
-                    except OSError:
-                        return
-
-                elif fd == STDIN:
-                    try:
-                        data = os.read(STDIN, 4096)
-                        if not data:
-                            return
-                        os.write(pty_fd, data)
-                    except OSError:
-                        pass
-
-                elif fd == CMDIO:
-                    try:
-                        data = os.read(CMDIO, 256)
-                        if data:
-                            cmd_buffer += data.decode('utf-8', errors='ignore')
-                            while '\\n' in cmd_buffer:
-                                line, cmd_buffer = cmd_buffer.split('\\n', 1)
-                                if 'x' in line:
-                                    try:
-                                        cols, rows = line.strip().split('x')
-                                        set_winsize(pty_fd, int(cols), int(rows))
-                                        # Send SIGWINCH to notify child of resize
-                                        os.kill(pid, signal.SIGWINCH)
-                                    except (ValueError, OSError):
-                                        pass
-                    except OSError:
-                        pass
-
-            result = os.waitpid(pid, os.WNOHANG)
-            if result[0] != 0:
-                break
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
-
-if __name__ == '__main__':
-    main()
-`;
 
 /**
  * PTY session using Python's pty module.
@@ -158,45 +43,10 @@ export class PythonPtySession extends EventEmitter {
 	}
 
 	/**
-	 * Find Python 3 executable
-	 */
-	static findPython(): string | null {
-		const candidates = ["python3", "python"];
-
-		for (const cmd of candidates) {
-			try {
-				const result = execSync(`${cmd} --version 2>&1`, {
-					encoding: "utf-8",
-					timeout: 5000,
-				});
-				if (result.includes("Python 3")) {
-					return cmd;
-				}
-			} catch {
-				// Not found or error, try next
-			}
-		}
-		return null;
-	}
-
-	/**
 	 * Check if Python PTY is available on this platform
 	 */
 	static isAvailable(): boolean {
-		const platform = os.platform();
-		// Only works on Unix-like systems
-		if (platform !== "darwin" && platform !== "linux") {
-			return false;
-		}
-		// Check if Python 3 is available
-		return PythonPtySession.findPython() !== null;
-	}
-
-	/**
-	 * Get the default shell for the current platform
-	 */
-	static getDefaultShell(): string {
-		return process.env.SHELL || "/bin/bash";
+		return isPtyAvailable();
 	}
 
 	/**
@@ -207,12 +57,12 @@ export class PythonPtySession extends EventEmitter {
 			throw new Error("PTY session already running. Call kill() first.");
 		}
 
-		const pythonPath = this.options.pythonPath || PythonPtySession.findPython();
+		const pythonPath = this.options.pythonPath || findPython();
 		if (!pythonPath) {
 			throw new Error("Python 3 not found. Please install Python 3.");
 		}
 
-		const shell = this.options.shell || PythonPtySession.getDefaultShell();
+		const shell = this.options.shell || getDefaultShell();
 
 		// Set up environment
 		const env: Record<string, string> = {
@@ -230,7 +80,7 @@ export class PythonPtySession extends EventEmitter {
 		}
 
 		// Spawn Python with embedded script
-		this.process = spawn(pythonPath, ["-c", PTY_HELPER_SCRIPT, shell], {
+		this.process = spawn(pythonPath, ["-c", PYTHON_PTY_SCRIPT, shell], {
 			stdio: ["pipe", "pipe", "pipe", "pipe"], // stdin, stdout, stderr, cmdio
 			cwd: this.options.cwd || process.cwd(),
 			env,
