@@ -3,8 +3,41 @@ import { Editor, EditorPosition } from "obsidian";
 /**
  * Supported languages for execution
  */
-export const SUPPORTED_LANGUAGES = ["bash", "sh", "zsh", "shell", "python", "py"] as const;
+export const SUPPORTED_LANGUAGES = [
+	"bash", "sh", "zsh", "shell",
+	"python", "py",
+	"javascript", "js",
+	"typescript", "ts",
+] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+
+/**
+ * Shell languages that execute directly in the PTY
+ */
+export const SHELL_LANGUAGES = ["bash", "sh", "zsh", "shell"] as const;
+
+/**
+ * Runme-compatible code block attributes
+ * Parsed from JSON after language tag: ```sh {"name":"setup","cwd":"/tmp"}
+ */
+export interface CodeBlockAttributes {
+	name?: string;
+	excludeFromRunAll?: boolean;
+	cwd?: string;
+	/** Use persistent REPL session (default true for non-shell languages) */
+	interactive?: boolean;
+	/** Override the interpreter command path */
+	interpreter?: string;
+	[key: string]: unknown; // Forward-compatible with unknown attributes
+}
+
+/**
+ * Document-level configuration from frontmatter
+ */
+export interface FrontmatterConfig {
+	shell?: string;
+	cwd?: string;
+}
 
 /**
  * Information about a code block
@@ -14,6 +47,7 @@ export interface CodeBlockInfo {
 	startLine: number;
 	endLine: number;
 	content: string;
+	attributes: CodeBlockAttributes;
 }
 
 /**
@@ -47,6 +81,8 @@ export function normalizeLanguage(language: string): string {
 		shell: "bash",
 		zsh: "bash",
 		py: "python",
+		js: "javascript",
+		ts: "typescript",
 	};
 
 	return aliases[normalized] || normalized;
@@ -86,6 +122,7 @@ export function findCodeBlockAtLine(editor: Editor, lineNumber: number): CodeBlo
 	// Search backwards for opening fence
 	let startLine = -1;
 	let language = "";
+	let attributes: CodeBlockAttributes = {};
 
 	for (let i = lineNumber; i >= 0; i--) {
 		const line = editor.getLine(i);
@@ -95,6 +132,7 @@ export function findCodeBlockAtLine(editor: Editor, lineNumber: number): CodeBlo
 		if (openMatch) {
 			startLine = i;
 			language = openMatch.language;
+			attributes = openMatch.attributes;
 			break;
 		}
 
@@ -147,22 +185,82 @@ export function findCodeBlockAtLine(editor: Editor, lineNumber: number): CodeBlo
 		startLine,
 		endLine,
 		content: contentLines.join("\n"),
+		attributes,
 	};
 }
 
 /**
- * Check if a line is an opening fence and extract language
+ * Check if a line is an opening fence and extract language + optional attributes
  * Only matches fences WITH a language specifier (required for execution)
+ * Supports Runme-compatible JSON attributes: ```sh {"name":"setup","cwd":"/tmp"}
  */
-export function getOpeningFenceInfo(line: string): { language: string } | null {
-	// Match ``` or ~~~ followed by REQUIRED language
-	const match = line.match(/^(`{3,}|~{3,})(\w+)\s*$/);
+export function getOpeningFenceInfo(line: string): { language: string; attributes: CodeBlockAttributes } | null {
+	// Match ``` or ~~~ followed by REQUIRED language, then optional JSON attributes
+	const match = line.match(/^(`{3,}|~{3,})(\w+)\s*(.*?)\s*$/);
 
-	if (match) {
-		return { language: match[2] };
+	if (!match) {
+		return null;
 	}
 
-	return null;
+	const language = match[2];
+	const attributesStr = match[3];
+
+	// Parse JSON attributes if present
+	let attributes: CodeBlockAttributes = {};
+	if (attributesStr) {
+		attributes = parseCodeBlockAttributes(attributesStr);
+	}
+
+	return { language, attributes };
+}
+
+/**
+ * Parse Runme-compatible JSON attributes from code block fence line
+ */
+export function parseCodeBlockAttributes(str: string): CodeBlockAttributes {
+	const trimmed = str.trim();
+	if (!trimmed) return {};
+
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+			return parsed as CodeBlockAttributes;
+		}
+	} catch {
+		// Not valid JSON - ignore gracefully (forward-compatible)
+	}
+	return {};
+}
+
+/**
+ * Parse frontmatter from document content
+ * Supports YAML-style frontmatter between --- delimiters
+ */
+export function parseFrontmatter(content: string): FrontmatterConfig {
+	const config: FrontmatterConfig = {};
+
+	// Match YAML frontmatter between --- delimiters
+	const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
+	if (!match) return config;
+
+	const yaml = match[1];
+	const lines = yaml.split("\n");
+
+	for (const line of lines) {
+		const kvMatch = line.match(/^\s*([\w-]+)\s*:\s*(.+?)\s*$/);
+		if (!kvMatch) continue;
+
+		const key = kvMatch[1].toLowerCase();
+		const value = kvMatch[2].replace(/^["']|["']$/g, ""); // Strip surrounding quotes
+
+		if (key === "shell") {
+			config.shell = value;
+		} else if (key === "cwd") {
+			config.cwd = value;
+		}
+	}
+
+	return config;
 }
 
 /**
@@ -232,4 +330,95 @@ export function advanceCursorToNextLine(editor: Editor): boolean {
 export function stripPromptPrefix(text: string): string {
 	// Strip leading $ or > followed by space
 	return text.replace(/^[\$\>]\s+/, "");
+}
+
+/**
+ * Check if a language is a shell language (executed directly in PTY)
+ */
+export function isShellLanguage(language: string): boolean {
+	const normalized = language.toLowerCase().trim();
+	return (SHELL_LANGUAGES as readonly string[]).includes(normalized);
+}
+
+/**
+ * Build the command to execute a code block in the appropriate interpreter.
+ * Shell languages return lines as-is. Other languages wrap in interpreter commands.
+ */
+export function buildInterpreterCommand(code: string, language: string): string {
+	const normalized = normalizeLanguage(language);
+
+	switch (normalized) {
+		case "python": {
+			// Use python3 -c for inline execution
+			// Escape single quotes in the code
+			const escaped = code.replace(/'/g, "'\\''");
+			return `python3 -c '${escaped}'`;
+		}
+		case "javascript": {
+			const escaped = code.replace(/'/g, "'\\''");
+			return `node -e '${escaped}'`;
+		}
+		case "typescript": {
+			const escaped = code.replace(/'/g, "'\\''");
+			return `npx tsx -e '${escaped}'`;
+		}
+		default:
+			// Shell languages - return code as-is
+			return code;
+	}
+}
+
+/**
+ * Get the interpreter type for a language (non-shell languages only).
+ * Returns null for shell languages.
+ */
+export function getInterpreterType(language: string): "python" | "javascript" | "typescript" | null {
+	const normalized = normalizeLanguage(language);
+	if (normalized === "python" || normalized === "javascript" || normalized === "typescript") {
+		return normalized;
+	}
+	return null;
+}
+
+/**
+ * Collect all code blocks from document content (for Run All)
+ */
+export function collectCodeBlocks(content: string): CodeBlockInfo[] {
+	const blocks: CodeBlockInfo[] = [];
+	const lines = content.split("\n");
+
+	let i = 0;
+	while (i < lines.length) {
+		const openMatch = getOpeningFenceInfo(lines[i]);
+		if (openMatch) {
+			const startLine = i;
+			const language = openMatch.language;
+			const attributes = openMatch.attributes;
+
+			// Find closing fence
+			let endLine = -1;
+			for (let j = i + 1; j < lines.length; j++) {
+				if (isClosingFence(lines[j])) {
+					endLine = j;
+					break;
+				}
+			}
+
+			if (endLine !== -1) {
+				const contentLines = lines.slice(startLine + 1, endLine);
+				blocks.push({
+					language,
+					startLine,
+					endLine,
+					content: contentLines.join("\n"),
+					attributes,
+				});
+				i = endLine + 1;
+				continue;
+			}
+		}
+		i++;
+	}
+
+	return blocks;
 }

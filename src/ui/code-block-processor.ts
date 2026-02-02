@@ -1,5 +1,12 @@
 import { MarkdownPostProcessorContext, Notice, setIcon } from "obsidian";
-import { isLanguageSupported, stripPromptPrefix } from "../editor/code-block";
+import {
+	isLanguageSupported,
+	isShellLanguage,
+	buildInterpreterCommand,
+	stripPromptPrefix,
+	getOpeningFenceInfo,
+	CodeBlockAttributes,
+} from "../editor/code-block";
 
 /**
  * Code Block Processor
@@ -15,6 +22,11 @@ interface ITerminalView {
 export interface CodeBlockProcessorOptions {
 	getTerminalView: () => ITerminalView | null;
 	createTerminal: () => Promise<void>;
+	/**
+	 * Execute a full code block with language-aware routing and attribute support.
+	 * When provided, the play button uses this instead of raw line-by-line execution.
+	 */
+	executeBlock?: (code: string, language: string, attributes: CodeBlockAttributes) => Promise<void>;
 }
 
 /**
@@ -33,8 +45,11 @@ export function createCodeBlockProcessor(options: CodeBlockProcessorOptions) {
 				return;
 			}
 
+			// Try to extract Runme-compatible attributes from the source fence line
+			const attributes = extractAttributes(el, ctx);
+
 			// Add run button to the code block
-			addRunButton(preEl, codeEl as HTMLElement, language, options);
+			addRunButton(preEl, codeEl as HTMLElement, language, attributes, options);
 		});
 	};
 }
@@ -53,12 +68,35 @@ function extractLanguage(codeEl: Element): string | null {
 }
 
 /**
+ * Extract Runme-compatible attributes from the source markdown via section info
+ */
+function extractAttributes(el: HTMLElement, ctx: MarkdownPostProcessorContext): CodeBlockAttributes {
+	try {
+		const sectionInfo = ctx.getSectionInfo(el);
+		if (sectionInfo) {
+			const lines = sectionInfo.text.split("\n");
+			const fenceLine = lines[sectionInfo.lineStart];
+			if (fenceLine) {
+				const info = getOpeningFenceInfo(fenceLine);
+				if (info) {
+					return info.attributes;
+				}
+			}
+		}
+	} catch {
+		// getSectionInfo may not be available in all contexts
+	}
+	return {};
+}
+
+/**
  * Add a run button to a code block
  */
 function addRunButton(
 	preEl: HTMLElement,
 	codeEl: HTMLElement,
 	language: string,
+	attributes: CodeBlockAttributes,
 	options: CodeBlockProcessorOptions
 ): void {
 	// Run button - positioned at top-right next to native copy button
@@ -89,11 +127,16 @@ function addRunButton(
 		runBtn.classList.add("is-running");
 
 		try {
-			// Get or create terminal
+			// Use the executeBlock callback if available (handles cwd, multi-lang, session isolation)
+			if (options.executeBlock) {
+				await options.executeBlock(code, language, attributes);
+				return;
+			}
+
+			// Fallback: direct terminal execution (legacy path)
 			let terminalView = options.getTerminalView();
 			if (!terminalView) {
 				await options.createTerminal();
-				// Wait for terminal to be ready
 				await new Promise(resolve => setTimeout(resolve, 200));
 				terminalView = options.getTerminalView();
 			}
@@ -103,21 +146,7 @@ function addRunButton(
 				return;
 			}
 
-			// Execute each line in terminal
-			const lines = code.split("\n").filter((line) => line.trim().length > 0);
-			for (const line of lines) {
-				const command = stripPromptPrefix(line.trim());
-				if (!command) continue;
-
-				// Use writeCommand for xterm-based terminal, executeFromCodeBlock for legacy
-				if (terminalView.writeCommand) {
-					terminalView.writeCommand(command);
-					// Small delay between commands for readability
-					await new Promise(resolve => setTimeout(resolve, 100));
-				} else if (terminalView.executeFromCodeBlock) {
-					await terminalView.executeFromCodeBlock(command, language);
-				}
-			}
+			await executeInTerminal(terminalView, code, language, attributes);
 		} catch (err) {
 			new Notice(`Execution failed: ${err}`);
 			console.error("Runbook: Execution failed", err);
@@ -126,4 +155,37 @@ function addRunButton(
 			runBtn.classList.remove("is-running");
 		}
 	});
+}
+
+/**
+ * Execute code in terminal with language-aware routing and cwd support
+ */
+async function executeInTerminal(
+	terminalView: ITerminalView,
+	code: string,
+	language: string,
+	attributes: CodeBlockAttributes
+): Promise<void> {
+	if (!terminalView.writeCommand) return;
+
+	// Handle per-cell cwd
+	if (attributes.cwd) {
+		terminalView.writeCommand(`cd ${attributes.cwd}`);
+		await new Promise(resolve => setTimeout(resolve, 100));
+	}
+
+	if (isShellLanguage(language)) {
+		// Shell: execute each line
+		const lines = code.split("\n").filter((line) => line.trim().length > 0);
+		for (const line of lines) {
+			const command = stripPromptPrefix(line.trim());
+			if (!command) continue;
+			terminalView.writeCommand(command);
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+	} else {
+		// Non-shell: wrap entire block in interpreter command
+		const command = buildInterpreterCommand(code, language);
+		terminalView.writeCommand(command);
+	}
 }

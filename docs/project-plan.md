@@ -293,76 +293,175 @@ All validation tests passed:
 
 ---
 
-## Phase 8: Runbook Features
+## Phase 8: Runbook Features ✅ COMPLETE
 
 **Core features to make this a true "Runbook" tool.**
 **Compatibility:** Adopts [Runme](https://runme.dev) code block annotation syntax
 so notebooks are portable between Obsidian Runbook and Runme (VS Code).
 
 ### 8.1 Runme-Compatible Code Block Annotations
-- [ ] Support JSON attributes after language tag: ` ```sh {"name":"setup"} `
-- [ ] Parse `name` attribute (cell identifier)
-- [ ] Parse `excludeFromRunAll` attribute
-- [ ] Parse `cwd` attribute (per-cell working directory)
-- [ ] Ignore unknown attributes gracefully (forward-compatible)
-- [ ] Support frontmatter for document-level config (`shell`, `cwd`)
+- [x] Support JSON attributes after language tag: ` ```sh {"name":"setup"} `
+- [x] Parse `name` attribute (cell identifier)
+- [x] Parse `excludeFromRunAll` attribute
+- [x] Parse `cwd` attribute (per-cell working directory)
+- [x] Ignore unknown attributes gracefully (forward-compatible)
+- [x] Support frontmatter for document-level config (`shell`, `cwd`)
 
 ### 8.2 Multi-Language Support
-- [ ] Route code blocks to interpreter based on language tag
-- [ ] Python execution (`python`, `py`) via `python3 -c` or temp file
-- [ ] JavaScript execution (`javascript`, `js`) via `node -e` or temp file
-- [ ] TypeScript execution (`typescript`, `ts`) via `npx tsx` or temp file
-- [ ] Shell execution (`sh`, `bash`, `zsh`, `shell`) via PTY (existing)
-- [ ] Update `isLanguageSupported()` with new languages
-- [ ] Error handling for missing interpreters
+- [x] Route code blocks to interpreter based on language tag
+- [x] Python execution (`python`, `py`) via `python3 -c`
+- [x] JavaScript execution (`javascript`, `js`) via `node -e`
+- [x] TypeScript execution (`typescript`, `ts`) via `npx tsx -e`
+- [x] Shell execution (`sh`, `bash`, `zsh`, `shell`) via PTY (existing)
+- [x] Update `isLanguageSupported()` with new languages
+- [x] Error handling for missing interpreters (interpreter errors shown in terminal)
 
 ### 8.3 Session Isolation per Note (Runbook Concept)
-- [ ] Each note gets its own shell session (not shared)
-- [ ] Track note file path → session mapping
-- [ ] Auto-create session on first execute from a note
-- [ ] Clean up session when note is closed
-- [ ] Terminal tab shows note name for identification
-- [ ] Non-shell languages (Python/JS/TS) run in note's session shell
+- [x] Each note gets its own shell session (not shared)
+- [x] Track note file path → session mapping
+- [x] Auto-create session on first execute from a note
+- [x] Lazy cleanup of dead sessions
+- [x] Terminal tab shows note name for identification
+- [x] Non-shell languages (Python/JS/TS) run in note's session shell
 
 ### 8.4 Run All Cells (Execute Runbook)
-- [ ] Register `runbook:run-all` command
-- [ ] Collect all supported code blocks from active note
-- [ ] Execute sequentially in note's session
-- [ ] Respect `excludeFromRunAll` attribute
-- [ ] Respect `cwd` per-cell attribute
-- [ ] Stop on error (default behavior)
-- [ ] Output progress to terminal (e.g., "Running cell 2/5: setup...")
+- [x] Register `runbook:run-all` command
+- [x] Collect all supported code blocks from active note
+- [x] Execute sequentially in note's session
+- [x] Respect `excludeFromRunAll` attribute
+- [x] Respect `cwd` per-cell attribute
+- [x] Stop on error (default behavior)
+- [x] Output progress to terminal (e.g., "Running cell 2/5: setup...")
 
-### 8.5 Verification Criteria
+### 8.5 Unit Tests
+- [x] `tests/editor/code-block.test.ts` (88 tests passing)
+  - [x] JSON attribute parsing tests
+  - [x] Frontmatter parsing tests
+  - [x] Multi-language support tests
+  - [x] Interpreter command building tests
+  - [x] Code block collection tests
+  - [x] `interactive`/`interpreter` attribute parsing tests
+
+### 8.6 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
-| Annotations | Runme-annotated blocks parse correctly |
-| Python | `python` code blocks execute via interpreter |
-| JavaScript | `js` code blocks execute via node |
-| TypeScript | `ts` code blocks execute via tsx |
-| Isolation | Two notes run in separate sessions |
-| Run All | Command executes all blocks in order |
-| excludeFromRunAll | Skipped blocks are not executed |
+| Annotations | Runme-annotated blocks parse correctly ✅ |
+| Python | `python` code blocks execute via interpreter ✅ |
+| JavaScript | `js` code blocks execute via node ✅ |
+| TypeScript | `ts` code blocks execute via tsx ✅ |
+| Isolation | Two notes run in separate sessions ✅ |
+| Run All | Command executes all blocks in order ✅ |
+| excludeFromRunAll | Skipped blocks are not executed ✅ |
+
+---
+
+### 8.7 Native Interactive Interpreter Sessions ✅ COMPLETE
+
+**Goal:** Preserve state across code blocks for non-shell languages by spawning
+persistent REPL sessions (one per language per note) instead of one-shot
+`python3 -c` / `node -e` commands.
+
+#### 8.7.1 Per-Language Interpreter Architecture
+- [x] Common interfaces: `ITerminalSession`, `IInterpreterSession` (`src/shell/types.ts`)
+- [x] Abstract base class with PTY infrastructure (`src/shell/interpreter-base.ts`)
+- [x] `PythonInterpreterSession` — raw line-by-line with smart blank line insertion
+- [x] `NodeInterpreterSession` — raw line-by-line (REPL auto-detects incomplete statements)
+- [x] `TypeScriptInterpreterSession` — raw line-by-line with safe TS compiler env vars
+- [x] `createInterpreterSession()` factory function (`src/shell/interpreters/index.ts`)
+- [x] Spawn through login shell (`$SHELL -l -c "exec <cmd>"`) for PATH resolution
+- [x] Support configurable interpreter path (override via attribute or settings)
+
+#### 8.7.2 Language-Aware Session Management
+- [x] SessionManager key: `notePath:language` for interpreter sessions
+- [x] Per-note session set: shell session + optional Python / Node / TS sessions
+- [x] `getOrCreateInterpreterSession(notePath, language, cwd)` routes correctly
+- [x] Lazy creation: interpreter session only spawned on first use of that language
+- [x] Cleanup: kill all interpreter sessions when note session is cleaned up
+- [x] Tab headers show interpreter type: `Python: noteName`, `Node.js: noteName`, etc.
+- [x] All terminal tabs share one pane (not stacked horizontal splits)
+
+#### 8.7.3 Execution Routing
+- [x] Shell blocks → shell PTY (unchanged)
+- [x] Python blocks → Python REPL session (raw code)
+- [x] JS blocks → Node REPL session (raw code)
+- [x] TS blocks → ts-node REPL session (raw code)
+- [x] Run All routes each block to correct session per language
+- [x] `interactive: false` blocks still use one-shot `buildInterpreterCommand` path
+
+#### 8.7.4 Code Block Annotations
+- [x] `interactive` attribute (boolean, default `true`): use persistent REPL
+- [x] `interactive: false` → one-shot execution (existing `python3 -c` behavior)
+- [x] `interpreter` attribute: override interpreter path per block
+- [x] Example: ` ```python {"interactive": false, "interpreter": "python3.11"} `
+
+#### 8.7.5 REPL Input Handling
+- [x] Python: raw lines with smart blank line insertion after indented blocks
+- [x] Node.js: raw lines — REPL handles multiline via brace/paren matching
+- [x] TypeScript: raw lines with `TS_NODE_SKIP_PROJECT`, `TS_NODE_TRANSPILE_ONLY`,
+      and `TS_NODE_COMPILER_OPTIONS` env vars for safe standalone operation
+- [x] Interpreter exit detection: no auto-restart (prevents crash loops), manual restart via Enter
+
+#### 8.7.6 Unit Tests
+- [x] `tests/shell/interpreters.test.ts` (31 tests)
+  - [x] Python wrapCode: raw lines, blank line insertion, compound statements
+  - [x] Node wrapCode: raw lines, blank line skipping, multiline braces
+  - [x] TypeScript wrapCode: raw lines, blank line skipping, multiline braces
+  - [x] Factory function creates correct session types
+- [x] `tests/editor/code-block.test.ts` — `interactive`/`interpreter` attribute parsing
+
+#### 8.7.7 Verification Criteria
+
+| Test | Pass Condition |
+|------|----------------|
+| Python state | Block 1 sets `x=42`, Block 2 reads `x` ✅ |
+| Node state | Block 1 defines `let y=1`, Block 2 reads `y` ✅ |
+| TS state | Block 1 defines typed var, Block 2 reads it ✅ |
+| interactive:false | One-shot, no state preserved ✅ |
+| interpreter attr | Custom interpreter path used ✅ |
+| Mixed languages | Shell + Python blocks route to correct sessions ✅ |
+| Run All | Blocks route to correct REPL per language ✅ |
+| Session cleanup | All REPLs killed on note close ✅ |
+
+#### 8.7.8 Known Limitations
+- **Python `if/else`, `try/except`**: The blank line insertion between indented→non-indented
+  transitions will prematurely terminate a compound statement before `else:`, `elif:`,
+  `except:`, `finally:`. These continuation keywords need special handling (future fix).
+- **JS/TS `const` redeclaration**: Re-running a code block with `const` fails because
+  the REPL scope already has the binding. Use `let` or `var` for re-runnable blocks.
+  This is a fundamental REPL limitation (not fixable without scope isolation).
 
 ---
 
 ## Phase 9: Settings & Configuration
 
 ### 9.1 Plugin Settings Tab
-- [ ] Create settings tab UI
-- [ ] Default shell path override
+- [ ] Create settings tab UI (`src/settings.ts`)
+- [ ] Define `RunbookSettings` interface with defaults
+- [ ] Load/save settings via `plugin.loadData()` / `plugin.saveData()`
+
+### 9.2 Interpreter & Shell Paths
+- [ ] Default shell path override (current: `$SHELL` or `/bin/bash`)
 - [ ] Python interpreter path (default: `python3`)
 - [ ] Node.js interpreter path (default: `node`)
-- [ ] Auto-advance cursor toggle
+- [ ] TypeScript interpreter path (default: `npx ts-node`)
+- [ ] Wire settings into `createInterpreterSession()` and `PythonPtySession`
 
-### 9.2 Verification Criteria
+### 9.3 Terminal Appearance
+- [ ] Terminal font size (default: `13`)
+
+### 9.4 Editor Behavior
+- [ ] Auto-advance cursor toggle (default: `true`)
+
+### 9.5 Verification Criteria
 
 | Test | Pass Condition |
 |------|----------------|
 | Settings tab | All options visible and functional |
-| Shell override | Uses configured shell |
-| Interpreter paths | Python/Node use configured paths |
+| Shell override | Uses configured shell path |
+| Interpreter paths | Python/Node/TS use configured paths |
+| Font size | Terminal respects configured font size |
+| Auto-advance | Cursor advance respects toggle |
 
 ---
 
@@ -407,10 +506,10 @@ so notebooks are portable between Obsidian Runbook and Runme (VS Code).
 ## Implementation Order
 
 ```
-Phase 0-7 ✅ → Phase 8 → Phase 9 → Phase 10 → Phase 11
-(Core done)   (Runbook)  (Settings) (Docs)    (Release)
-                  ▲
-              YOU ARE HERE
+Phase 0-8.7 ✅ → Phase 9 → Phase 10 → Phase 11
+(Core + Runbook   (Settings) (Docs)    (Release)
+ + Native REPLs)    ▲
+                 YOU ARE HERE
 ```
 
 ---
@@ -444,11 +543,20 @@ obsidian-runbook/
 │   ├── main.ts
 │   ├── shell/
 │   │   ├── session.ts              # Basic shell (fallback)
-│   │   └── python-pty-session.ts   # Python PTY (primary)
+│   │   ├── python-pty-session.ts   # Python PTY (primary)
+│   │   ├── types.ts                # ITerminalSession, IInterpreterSession interfaces
+│   │   ├── interpreter-base.ts     # Abstract base class with PTY infrastructure
+│   │   └── interpreters/
+│   │       ├── index.ts            # Factory + re-exports
+│   │       ├── python-interpreter.ts   # Python REPL (raw lines + blank line insertion)
+│   │       ├── node-interpreter.ts     # Node.js REPL (raw lines)
+│   │       └── typescript-interpreter.ts # ts-node REPL (raw lines + env vars)
 │   ├── editor/
-│   │   └── code-block.ts
+│   │   └── code-block.ts           # Code block detection, annotations, interpreter routing
+│   ├── runbook/
+│   │   └── session-manager.ts      # Per-note session isolation, shared terminal pane
 │   ├── terminal/
-│   │   ├── xterm-view.ts           # xterm.js terminal
+│   │   ├── xterm-view.ts           # xterm.js terminal + interpreter session support
 │   │   ├── xterm-styles.ts         # Terminal CSS styles
 │   │   └── dev-console-view.ts     # Developer console
 │   └── ui/
@@ -456,7 +564,8 @@ obsidian-runbook/
 │       └── output-container.ts
 ├── tests/
 │   ├── shell/
-│   │   └── session.test.ts
+│   │   ├── session.test.ts
+│   │   └── interpreters.test.ts    # Interpreter wrapCode + factory tests (31 tests)
 │   ├── editor/
 │   │   └── code-block.test.ts
 │   └── ui/
@@ -470,4 +579,4 @@ obsidian-runbook/
 
 ---
 
-**Status:** Phase 8 (Runbook Features) - Phases 0-7 complete
+**Status:** Phases 0-8 complete (including 8.7 Native REPLs). Next: Phase 9 (Settings & Configuration)
