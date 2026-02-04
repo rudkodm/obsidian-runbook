@@ -37,15 +37,22 @@ def main():
         print("No command specified", file=sys.stderr)
         sys.exit(1)
 
-    # If only shell is specified, start as login shell
-    # Otherwise, spawn command through login shell to inherit PATH
     shell = os.environ.get('SHELL', '/bin/bash')
 
-    if len(cmd) == 1 and not any(opt in cmd[0] for opt in ['-c', '--', '|']):
-        # Direct shell invocation
+    # Detect if this is a direct shell invocation vs an interpreter command
+    # Direct shell: absolute path (/bin/bash) or common shell name
+    is_shell = False
+    if len(cmd) == 1:
+        cmd_lower = os.path.basename(cmd[0]).lower()
+        # Check if it's a known shell or absolute path to shell
+        if cmd[0].startswith('/') or cmd_lower in ['bash', 'zsh', 'sh', 'fish', 'ksh', 'tcsh', 'csh']:
+            is_shell = True
+
+    if is_shell:
+        # Direct shell invocation - start as login shell
         args = [cmd[0], '-l']
     else:
-        # Command execution through shell
+        # Interpreter or command - run through login shell to inherit PATH
         full_cmd = ' '.join(shlex.quote(c) for c in cmd)
         args = [shell, '-l', '-c', 'exec ' + full_cmd]
 
