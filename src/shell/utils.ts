@@ -52,9 +52,12 @@ def main():
         # Direct shell invocation - start as login shell
         args = [cmd[0], '-l']
     else:
-        # Interpreter or command - run through login shell to inherit PATH
+        # Interpreter or command - run through interactive login shell to inherit PATH
+        # -i ensures shell initialization files (.zshrc, .bashrc) are sourced
+        # -l makes it a login shell
+        # This is needed for tools installed via nvm, npm, homebrew, etc.
         full_cmd = ' '.join(shlex.quote(c) for c in cmd)
-        args = [shell, '-l', '-c', 'exec ' + full_cmd]
+        args = [shell, '-i', '-l', '-c', 'exec ' + full_cmd]
 
     pid, pty_fd = pty.fork()
 
