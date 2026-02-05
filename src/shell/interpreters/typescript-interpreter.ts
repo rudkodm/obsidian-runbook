@@ -43,7 +43,9 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	}
 
 	protected getCommand(): { command: string; args: string[] } {
-		return { command: "npx", args: ["ts-node"] };
+		// Try ts-node directly first (if installed globally)
+		// If not found, the shell will handle it through PATH
+		return { command: "ts-node", args: [] };
 	}
 
 	// Uses default wrapCode implementation from base class
