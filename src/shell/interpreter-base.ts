@@ -1,8 +1,9 @@
-import { spawn, ChildProcess, execSync } from "child_process";
+import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
 import * as os from "os";
 import * as fs from "fs";
 import { SessionState, InterpreterType, IInterpreterSession } from "./types";
+import { PYTHON_PTY_SCRIPT, findPython, isPtyAvailable, removeEmptyLines } from "./utils";
 
 export interface InterpreterSessionOptions {
 	cwd?: string;
@@ -13,127 +14,6 @@ export interface InterpreterSessionOptions {
 	/** Override the default interpreter command */
 	interpreterPath?: string;
 }
-
-/**
- * Embedded Python PTY helper that spawns an arbitrary command through a login shell.
- * Uses $SHELL -l -c "exec <cmd>" to ensure PATH from shell profiles is available.
- * This allows interpreters like node, npx, python3 to be found even when
- * installed via Homebrew, nvm, pyenv, etc.
- */
-const INTERPRETER_PTY_SCRIPT = `
-import sys
-import os
-import pty
-import select
-import struct
-import fcntl
-import termios
-import signal
-import shlex
-
-STDIN = sys.stdin.fileno()
-STDOUT = sys.stdout.fileno()
-CMDIO = 3
-
-def set_nonblocking(fd):
-    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
-
-def set_winsize(fd, cols, rows):
-    winsize = struct.pack('HHHH', rows, cols, 0, 0)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
-
-def main():
-    cmd = sys.argv[1:]
-    if not cmd:
-        print("No command specified", file=sys.stderr)
-        sys.exit(1)
-
-    # Spawn through login shell to inherit PATH from shell profiles
-    shell = os.environ.get('SHELL', '/bin/bash')
-    full_cmd = ' '.join(shlex.quote(c) for c in cmd)
-    args = [shell, '-l', '-c', 'exec ' + full_cmd]
-
-    pid, pty_fd = pty.fork()
-
-    if pid == 0:
-        os.execvp(shell, args)
-        sys.exit(1)
-
-    set_nonblocking(STDIN)
-    set_nonblocking(pty_fd)
-
-    has_cmdio = False
-    try:
-        set_nonblocking(CMDIO)
-        has_cmdio = True
-    except OSError:
-        pass
-
-    read_fds = [STDIN, pty_fd]
-    if has_cmdio:
-        read_fds.append(CMDIO)
-
-    cmd_buffer = ""
-
-    try:
-        while True:
-            try:
-                readable, _, _ = select.select(read_fds, [], [], 0.1)
-            except select.error:
-                break
-
-            for fd in readable:
-                if fd == pty_fd:
-                    try:
-                        data = os.read(pty_fd, 4096)
-                        if not data:
-                            return
-                        os.write(STDOUT, data)
-                    except OSError:
-                        return
-
-                elif fd == STDIN:
-                    try:
-                        data = os.read(STDIN, 4096)
-                        if not data:
-                            return
-                        os.write(pty_fd, data)
-                    except OSError:
-                        pass
-
-                elif fd == CMDIO:
-                    try:
-                        data = os.read(CMDIO, 256)
-                        if data:
-                            cmd_buffer += data.decode('utf-8', errors='ignore')
-                            while '\\n' in cmd_buffer:
-                                line, cmd_buffer = cmd_buffer.split('\\n', 1)
-                                if 'x' in line:
-                                    try:
-                                        cols, rows = line.strip().split('x')
-                                        set_winsize(pty_fd, int(cols), int(rows))
-                                        os.kill(pid, signal.SIGWINCH)
-                                    except (ValueError, OSError):
-                                        pass
-                    except OSError:
-                        pass
-
-            result = os.waitpid(pid, os.WNOHANG)
-            if result[0] != 0:
-                break
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
-
-if __name__ == '__main__':
-    main()
-`;
 
 /**
  * Abstract base class for interactive interpreter sessions.
@@ -167,8 +47,14 @@ export abstract class BaseInterpreterSession extends EventEmitter implements IIn
 	/** Get the default command and args to spawn the interpreter */
 	protected abstract getCommand(): { command: string; args: string[] };
 
-	/** Wrap code for execution in this interpreter's REPL */
-	abstract wrapCode(code: string): string;
+	/**
+	 * Wrap code for execution in this interpreter's REPL.
+	 * Default implementation removes empty lines.
+	 * Override for language-specific wrapping (e.g., Python needs indentation handling).
+	 */
+	wrapCode(code: string): string {
+		return removeEmptyLines(code);
+	}
 
 	get state(): SessionState {
 		return this._state;
@@ -183,36 +69,10 @@ export abstract class BaseInterpreterSession extends EventEmitter implements IIn
 	}
 
 	/**
-	 * Find Python 3 executable (needed for the PTY helper)
-	 */
-	static findPython(): string | null {
-		const candidates = ["python3", "python"];
-
-		for (const cmd of candidates) {
-			try {
-				const result = execSync(`${cmd} --version 2>&1`, {
-					encoding: "utf-8",
-					timeout: 5000,
-				});
-				if (result.includes("Python 3")) {
-					return cmd;
-				}
-			} catch {
-				// Not found, try next
-			}
-		}
-		return null;
-	}
-
-	/**
 	 * Check if interpreter sessions are available on this platform
 	 */
 	static isAvailable(): boolean {
-		const platform = os.platform();
-		if (platform !== "darwin" && platform !== "linux") {
-			return false;
-		}
-		return BaseInterpreterSession.findPython() !== null;
+		return isPtyAvailable();
 	}
 
 	/**
@@ -223,7 +83,7 @@ export abstract class BaseInterpreterSession extends EventEmitter implements IIn
 			throw new Error("Interpreter session already running. Call kill() first.");
 		}
 
-		const pythonPath = this.options.pythonPath || BaseInterpreterSession.findPython();
+		const pythonPath = this.options.pythonPath || findPython();
 		if (!pythonPath) {
 			throw new Error("Python 3 not found (needed for PTY). Please install Python 3.");
 		}
@@ -246,7 +106,7 @@ export abstract class BaseInterpreterSession extends EventEmitter implements IIn
 		// Spawn Python PTY helper with the interpreter command as arguments
 		this.process = spawn(
 			pythonPath,
-			["-c", INTERPRETER_PTY_SCRIPT, config.command, ...config.args],
+			["-c", PYTHON_PTY_SCRIPT, config.command, ...config.args],
 			{
 				stdio: ["pipe", "pipe", "pipe", "pipe"],
 				cwd: this.options.cwd || process.cwd(),
@@ -325,7 +185,12 @@ export abstract class BaseInterpreterSession extends EventEmitter implements IIn
 	 */
 	private getResolvedCommand(): { command: string; args: string[] } {
 		if (this.options.interpreterPath) {
-			return { command: this.options.interpreterPath, args: [] };
+			// Split the interpreterPath into command and args
+			// e.g., "npx ts-node" -> { command: "npx", args: ["ts-node"] }
+			const parts = this.options.interpreterPath.trim().split(/\s+/);
+			const command = parts[0];
+			const args = parts.slice(1);
+			return { command, args };
 		}
 		return this.getCommand();
 	}

@@ -7,18 +7,10 @@ import { ShellSession } from "../shell/session";
 import { InterpreterType } from "../shell/types";
 import { BaseInterpreterSession } from "../shell/interpreter-base";
 import { createInterpreterSession } from "../shell/interpreters";
+import { ANSI, ANSI_COLORS } from "../ui/theme/ansi-colors";
+import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
-
-/** ANSI escape codes for terminal output formatting */
-const ANSI = {
-	RESET: "\x1b[0m",
-	RED: "\x1b[31m",
-	GREEN: "\x1b[32m",
-	YELLOW: "\x1b[33m",
-	GRAY: "\x1b[90m",
-	CLEAR_LINE: "\x1b[K",
-} as const;
 
 /** Terminal session state */
 export type TerminalState = "starting" | "running" | "exited" | "error";
@@ -143,8 +135,8 @@ export class XtermView extends ItemView {
 		this.terminal = new Terminal({
 			cursorBlink: true,
 			fontSize: this.fontSize,
-			fontFamily: "var(--font-monospace), Menlo, Monaco, 'Courier New', monospace",
-			theme: this.getTheme(),
+			fontFamily: getTerminalFontFamily(),
+			theme: getXtermTheme(),
 			allowProposedApi: true,
 		});
 
@@ -593,43 +585,11 @@ export class XtermView extends ItemView {
 	}
 
 	/**
-	 * Get theme colors from Obsidian CSS variables
-	 */
-	private getTheme(): Record<string, string> {
-		const styles = getComputedStyle(document.body);
-
-		return {
-			background: styles.getPropertyValue("--background-primary").trim() || "#1e1e1e",
-			foreground: styles.getPropertyValue("--text-normal").trim() || "#d4d4d4",
-			cursor: styles.getPropertyValue("--text-accent").trim() || "#569cd6",
-			cursorAccent: styles.getPropertyValue("--background-primary").trim() || "#1e1e1e",
-			selectionBackground: styles.getPropertyValue("--text-selection").trim() || "#264f78",
-			// ANSI colors
-			black: "#000000",
-			red: "#cd3131",
-			green: "#0dbc79",
-			yellow: "#e5e510",
-			blue: "#2472c8",
-			magenta: "#bc3fbc",
-			cyan: "#11a8cd",
-			white: "#e5e5e5",
-			brightBlack: "#666666",
-			brightRed: "#f14c4c",
-			brightGreen: "#23d18b",
-			brightYellow: "#f5f543",
-			brightBlue: "#3b8eea",
-			brightMagenta: "#d670d6",
-			brightCyan: "#29b8db",
-			brightWhite: "#ffffff",
-		};
-	}
-
-	/**
 	 * Update theme when Obsidian theme changes
 	 */
 	updateTheme(): void {
 		if (this.terminal) {
-			this.terminal.options.theme = this.getTheme();
+			this.terminal.options.theme = getXtermTheme();
 		}
 	}
 }

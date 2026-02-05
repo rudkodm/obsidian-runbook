@@ -1,13 +1,61 @@
 /* Runbook Plugin Styles */
 
+/* ==================== CSS CUSTOM PROPERTIES ==================== */
+/* Design tokens for consistent theming and easier maintenance */
+
+.theme-dark,
+.theme-light {
+	/* Spacing scale (4px base unit) */
+	--rb-spacing-xs: 4px;
+	--rb-spacing-sm: 8px;
+	--rb-spacing-md: 12px;
+	--rb-spacing-lg: 16px;
+	--rb-spacing-xl: 20px;
+
+	/* Typography */
+	--rb-font-size-xs: 10px;
+	--rb-font-size-sm: 11px;
+	--rb-font-size-md: 12px;
+	--rb-font-size-base: 13px;
+	--rb-font-size-lg: 14px;
+	--rb-line-height-normal: 1.5;
+
+	/* Border radius */
+	--rb-radius-sm: 2px;
+	--rb-radius-md: 4px;
+	--rb-radius-lg: 6px;
+
+	/* Icon sizes */
+	--rb-icon-sm: 14px;
+	--rb-icon-md: 16px;
+	--rb-icon-lg: 20px;
+	--rb-icon-xl: 24px;
+
+	/* Animation timing */
+	--rb-duration-fast: 100ms;
+	--rb-duration-normal: 200ms;
+	--rb-duration-slow: 300ms;
+
+	/* Z-index scale */
+	--rb-z-base: 0;
+	--rb-z-elevated: 10;
+	--rb-z-dropdown: 50;
+
+	/* Semantic colors (inherit from Obsidian) */
+	--rb-color-success: var(--text-success, #0dbc79);
+	--rb-color-warning: var(--text-warning, #e5e510);
+	--rb-color-error: var(--text-error, #cd3131);
+	--rb-color-info: var(--text-accent);
+}
+
 /* ==================== RUN BUTTON (top-right, next to native copy) ==================== */
 
 .rb-run-button.clickable-icon {
 	position: absolute;
 	top: 0;
 	right: 34px;
-	margin: 4px;
-	padding: 4px 6px;
+	margin: var(--rb-spacing-xs);
+	padding: var(--rb-spacing-xs) 6px;
 	height: auto;
 	background-color: transparent;
 	box-shadow: none;
@@ -17,8 +65,8 @@
 	border-radius: var(--button-radius);
 	cursor: pointer;
 	opacity: 0;
-	z-index: 1;
-	transition: opacity 100ms ease-in-out;
+	z-index: var(--rb-z-elevated);
+	transition: opacity var(--rb-duration-fast) ease-in-out;
 }
 
 .rb-run-button.clickable-icon:hover {
@@ -48,11 +96,11 @@ pre:hover .rb-run-button.clickable-icon {
 
 /* Output area buttons - keep consistent styling */
 .rb-cell-btn.clickable-icon {
-	--icon-size: 16px;
+	--icon-size: var(--rb-icon-md);
 	color: var(--text-muted);
 	background: transparent;
-	padding: 4px;
-	border-radius: 4px;
+	padding: var(--rb-spacing-xs);
+	border-radius: var(--rb-radius-md);
 	border: none;
 	cursor: pointer;
 }
@@ -73,7 +121,7 @@ pre:hover .rb-run-button.clickable-icon {
 .rb-cell-code pre {
 	position: relative;
 	margin: 0 !important;
-	padding: 14px 12px !important;
+	padding: var(--rb-spacing-lg) var(--rb-spacing-md) !important;
 	background: transparent !important;
 	border: none !important;
 	border-radius: 0 !important;
@@ -88,7 +136,7 @@ pre:hover .rb-run-button.clickable-icon {
 .rb-cell-output {
 	position: relative;
 	background: var(--background-secondary);
-	padding: 10px 12px;
+	padding: var(--rb-spacing-xs) var(--rb-spacing-md);
 	min-height: 40px;
 }
 
@@ -111,11 +159,11 @@ pre:hover .rb-run-button.clickable-icon {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-bottom: 8px;
+	margin-bottom: var(--rb-spacing-sm);
 }
 
 .rb-cell-output-title {
-	font-size: 11px;
+	font-size: var(--rb-font-size-sm);
 	font-weight: 500;
 	color: var(--text-muted);
 	text-transform: uppercase;
@@ -127,7 +175,7 @@ pre:hover .rb-run-button.clickable-icon {
 	display: flex;
 	gap: 2px;
 	opacity: 0;
-	transition: opacity 120ms ease;
+	transition: opacity var(--rb-duration-normal) ease;
 }
 
 .rb-cell-output:hover .rb-cell-output-actions {
@@ -137,8 +185,8 @@ pre:hover .rb-run-button.clickable-icon {
 /* Output body */
 .rb-cell-output-body {
 	font-family: var(--font-monospace);
-	font-size: 13px;
-	line-height: 1.5;
+	font-size: var(--rb-font-size-base);
+	line-height: var(--rb-line-height-normal);
 }
 
 .rb-cell-output-body pre {
@@ -163,7 +211,7 @@ pre:hover .rb-run-button.clickable-icon {
 .rb-cell-output-empty {
 	color: var(--text-faint);
 	font-style: italic;
-	font-size: 12px;
+	font-size: var(--rb-font-size-md);
 }
 
 /* ==================== SPINNER ==================== */
@@ -172,15 +220,15 @@ pre:hover .rb-run-button.clickable-icon {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	padding: 12px;
+	padding: var(--rb-spacing-md);
 }
 
 .rb-cell-spinner::after {
 	content: "";
-	width: 20px;
-	height: 20px;
+	width: var(--rb-icon-lg);
+	height: var(--rb-icon-lg);
 	border: 2px solid var(--background-modifier-border);
-	border-top-color: var(--text-accent);
+	border-top-color: var(--rb-color-info);
 	border-radius: 50%;
 	animation: rb-spin 0.8s linear infinite;
 }

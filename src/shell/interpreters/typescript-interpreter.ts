@@ -43,21 +43,10 @@ export class TypeScriptInterpreterSession extends BaseInterpreterSession {
 	}
 
 	protected getCommand(): { command: string; args: string[] } {
-		return { command: "npx", args: ["ts-node"] };
+		// Try ts-node directly first (if installed globally)
+		// If not found, the shell will handle it through PATH
+		return { command: "ts-node", args: [] };
 	}
 
-	/**
-	 * Wrap code for ts-node REPL execution.
-	 * Sends raw lines — with --transpileOnly, the REPL handles multiline
-	 * via brace/paren matching, same as Node's REPL.
-	 */
-	wrapCode(code: string): string {
-		const lines = code.split("\n");
-		let result = "";
-		for (const line of lines) {
-			if (line.trim() === "") continue;
-			result += line + "\n";
-		}
-		return result;
-	}
+	// Uses default wrapCode implementation from base class
 }

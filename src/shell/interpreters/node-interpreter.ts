@@ -25,17 +25,5 @@ export class NodeInterpreterSession extends BaseInterpreterSession {
 		return { command: "node", args: [] };
 	}
 
-	/**
-	 * Wrap code for Node REPL execution.
-	 * Sends raw lines — the REPL handles multiline via brace/paren matching.
-	 */
-	wrapCode(code: string): string {
-		const lines = code.split("\n");
-		let result = "";
-		for (const line of lines) {
-			if (line.trim() === "") continue;
-			result += line + "\n";
-		}
-		return result;
-	}
+	// Uses default wrapCode implementation from base class
 }

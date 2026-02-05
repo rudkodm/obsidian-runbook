@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf, App } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
 
 export const DEV_CONSOLE_VIEW_TYPE = "runbook-dev-console";
 
@@ -59,8 +60,8 @@ export class DevConsoleView extends ItemView {
 		this.terminal = new Terminal({
 			cursorBlink: true,
 			fontSize: 13,
-			fontFamily: "var(--font-monospace), Menlo, Monaco, 'Courier New', monospace",
-			theme: this.getTheme(),
+			fontFamily: getTerminalFontFamily(),
+			theme: getXtermTheme(),
 			allowProposedApi: true,
 			convertEol: true,
 		});
@@ -916,34 +917,6 @@ export class DevConsoleView extends ItemView {
 		console.warn = this.originalConsole.warn;
 		console.error = this.originalConsole.error;
 		console.info = this.originalConsole.info;
-	}
-
-	private getTheme(): Record<string, string> {
-		const styles = getComputedStyle(document.body);
-
-		return {
-			background: styles.getPropertyValue("--background-primary").trim() || "#1e1e1e",
-			foreground: styles.getPropertyValue("--text-normal").trim() || "#d4d4d4",
-			cursor: styles.getPropertyValue("--text-accent").trim() || "#569cd6",
-			cursorAccent: styles.getPropertyValue("--background-primary").trim() || "#1e1e1e",
-			selectionBackground: styles.getPropertyValue("--text-selection").trim() || "#264f78",
-			black: "#000000",
-			red: "#cd3131",
-			green: "#0dbc79",
-			yellow: "#e5e510",
-			blue: "#2472c8",
-			magenta: "#bc3fbc",
-			cyan: "#11a8cd",
-			white: "#e5e5e5",
-			brightBlack: "#666666",
-			brightRed: "#f14c4c",
-			brightGreen: "#23d18b",
-			brightYellow: "#f5f543",
-			brightBlue: "#3b8eea",
-			brightMagenta: "#d670d6",
-			brightCyan: "#29b8db",
-			brightWhite: "#ffffff",
-		};
 	}
 
 	/**
