@@ -185,7 +185,12 @@ export abstract class BaseInterpreterSession extends EventEmitter implements IIn
 	 */
 	private getResolvedCommand(): { command: string; args: string[] } {
 		if (this.options.interpreterPath) {
-			return { command: this.options.interpreterPath, args: [] };
+			// Split the interpreterPath into command and args
+			// e.g., "npx ts-node" -> { command: "npx", args: ["ts-node"] }
+			const parts = this.options.interpreterPath.trim().split(/\s+/);
+			const command = parts[0];
+			const args = parts.slice(1);
+			return { command, args };
 		}
 		return this.getCommand();
 	}
