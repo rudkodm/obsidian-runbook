@@ -199,16 +199,16 @@ export default class RunbookPlugin extends Plugin {
 		}).length;
 
 		// Update content and styling
-		this.statusBarEl.empty();
+		this.statusBarEl.replaceChildren();
 		if (count === 0) {
-			this.statusBarEl.createEl("span", { cls: "status-icon", text: ">" });
+			this.statusBarEl.createSpan({ cls: "status-icon", text: ">" });
 			this.statusBarEl.removeClass("has-terminals");
 			this.statusBarEl.addClass("no-terminals");
 			this.statusBarEl.setAttribute("aria-label", "No terminals - click to open");
 		} else {
 			const statusIcon = runningCount === count ? ">" : "!";
-			this.statusBarEl.createEl("span", { cls: "status-icon", text: statusIcon });
-			this.statusBarEl.createEl("span", { text: String(count) });
+			this.statusBarEl.createSpan({ cls: "status-icon", text: statusIcon });
+			this.statusBarEl.createSpan({ text: String(count) });
 			this.statusBarEl.addClass("has-terminals");
 			this.statusBarEl.removeClass("no-terminals");
 			this.statusBarEl.setAttribute(
