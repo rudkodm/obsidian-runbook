@@ -17,7 +17,6 @@ import {
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
 import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xterm-view";
 import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
-import { XTERM_STYLES, XTERM_LIB_CSS } from "./terminal/xterm-styles";
 import { SessionManager } from "./runbook/session-manager";
 import { RunbookSettings, DEFAULT_SETTINGS, RunbookSettingsTab } from "./settings";
 
@@ -28,7 +27,6 @@ import { RunbookSettings, DEFAULT_SETTINGS, RunbookSettingsTab } from "./setting
  */
 export default class RunbookPlugin extends Plugin {
 	settings: RunbookSettings = DEFAULT_SETTINGS;
-	private styleEl: HTMLStyleElement | null = null;
 	private statusBarEl: HTMLElement | null = null;
 	private unsubscribeStateChange: (() => void) | null = null;
 	private sessionManager: SessionManager | null = null;
@@ -47,9 +45,6 @@ export default class RunbookPlugin extends Plugin {
 
 		// Initialize session manager
 		this.sessionManager = new SessionManager(this.app, this.settings);
-
-		// Inject styles
-		this.injectStyles();
 
 		// Setup status bar
 		this.setupStatusBar();
@@ -94,10 +89,6 @@ export default class RunbookPlugin extends Plugin {
 		// Cleanup subscriptions
 		this.unsubscribeStateChange?.();
 		this.unsubscribeStateChange = null;
-
-		// Remove styles
-		this.styleEl?.remove();
-		this.styleEl = null;
 
 		// Note: Don't detach leaves here - Obsidian handles view cleanup automatically.
 		// Detaching in onunload resets user's leaf positions when plugin reloads.
@@ -570,16 +561,6 @@ export default class RunbookPlugin extends Plugin {
 				setTimeout(() => view.focus(), 100);
 			}
 		}
-	}
-
-	/**
-	 * Inject all required styles
-	 */
-	private injectStyles(): void {
-		this.styleEl = document.createElement("style");
-		this.styleEl.id = "runbook-styles";
-		this.styleEl.textContent = XTERM_LIB_CSS + XTERM_STYLES;
-		document.head.appendChild(this.styleEl);
 	}
 
 	/**

@@ -41,7 +41,7 @@ export class OutputContainer {
 		this.contentEl = this.createDiv(this.containerEl, "runbook-output-content");
 
 		// Initially hidden until there's output
-		this.containerEl.style.display = "none";
+		this.containerEl.classList.add("is-hidden");
 	}
 
 	/**
@@ -93,7 +93,7 @@ export class OutputContainer {
 			error: null,
 			timestamp: null,
 		};
-		this.containerEl.style.display = "none";
+		this.containerEl.classList.add("is-hidden");
 		this.onClear?.();
 	}
 
@@ -129,7 +129,7 @@ export class OutputContainer {
 	 * Render the current state
 	 */
 	private render(): void {
-		this.containerEl.style.display = "block";
+		this.containerEl.classList.remove("is-hidden");
 		this.headerEl.replaceChildren();
 		this.contentEl.replaceChildren();
 		this.contentEl.classList.remove("runbook-output-error");

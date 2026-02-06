@@ -17,10 +17,6 @@ export default [
 		},
 		rules: {
 			...plugin.configs.recommended,
-			// TODO: Address these properly
-			"obsidianmd/no-static-styles-assignment": "warn",
-			"obsidianmd/no-forbidden-elements": "warn",
-			"obsidianmd/ui/sentence-case": "warn", // Placeholders use command names
 		},
 	},
 	{
