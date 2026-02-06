@@ -128,8 +128,11 @@ export class OutputContainer {
 	 */
 	private render(): void {
 		this.containerEl.style.display = "block";
-		this.headerEl.empty();
-		this.contentEl.empty();
+		// Using innerHTML to clear (empty() is Obsidian-specific, not available in tests)
+		// eslint-disable-next-line no-unsanitized/property
+		this.headerEl.innerHTML = "";
+		// eslint-disable-next-line no-unsanitized/property
+		this.contentEl.innerHTML = "";
 		this.contentEl.classList.remove("runbook-output-error");
 
 		if (this.state.isLoading) {
