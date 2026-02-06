@@ -186,7 +186,7 @@ export class XtermView extends ItemView {
 			// Shell PTY mode
 			await this.initPythonPtySession();
 		} else {
-			console.log("Runbook: Python PTY not available, using fallback shell");
+			console.debug("Runbook: Python PTY not available, using fallback shell");
 			await this.initFallbackSession();
 		}
 	}
@@ -231,7 +231,7 @@ export class XtermView extends ItemView {
 		try {
 			this.ptySession.spawn();
 			this.setState("running");
-			console.log("Runbook: Python PTY spawned successfully, pid:", this.ptySession.pid);
+			console.debug("Runbook: Python PTY spawned successfully, pid:", this.ptySession.pid);
 		} catch (err) {
 			console.error("Runbook: Failed to spawn Python PTY, falling back:", err);
 			this.ptySession = null;
@@ -280,7 +280,7 @@ export class XtermView extends ItemView {
 			// Update header now that interpreterSession is set (affects getDisplayText)
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(this.leaf as any).updateHeader?.();
-			console.log(
+			console.debug(
 				`Runbook: Interpreter (${this.interpreterConfig!.type}) spawned, pid:`,
 				this.interpreterSession.pid,
 			);
@@ -338,7 +338,7 @@ export class XtermView extends ItemView {
 		try {
 			this.fallbackSession.spawn();
 			this.setState("running");
-			console.log("Runbook: Fallback shell spawned, pid:", this.fallbackSession.pid);
+			console.debug("Runbook: Fallback shell spawned, pid:", this.fallbackSession.pid);
 			this.showPrompt();
 		} catch (err) {
 			console.error("Runbook: Failed to spawn fallback shell:", err);

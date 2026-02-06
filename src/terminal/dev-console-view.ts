@@ -27,7 +27,8 @@ export class DevConsoleView extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
-		// Store original console methods
+		// Store original console methods (DevConsole intercepts console output intentionally)
+		// eslint-disable-next-line no-console
 		this.originalConsole = {
 			log: console.log.bind(console),
 			warn: console.warn.bind(console),
@@ -891,21 +892,26 @@ export class DevConsoleView extends ItemView {
 			this.terminal?.writeln(`${color}${prefix}\x1b[0m ${message}`);
 		};
 
+		// DevConsole intercepts console methods to display output in terminal view
+		// eslint-disable-next-line no-console
 		console.log = (...args: unknown[]) => {
 			this.originalConsole.log(...args);
 			writeToTerminal("[LOG]", "\x1b[90m", ...args);
 		};
 
+		// eslint-disable-next-line no-console
 		console.warn = (...args: unknown[]) => {
 			this.originalConsole.warn(...args);
 			writeToTerminal("[WARN]", "\x1b[33m", ...args);
 		};
 
+		// eslint-disable-next-line no-console
 		console.error = (...args: unknown[]) => {
 			this.originalConsole.error(...args);
 			writeToTerminal("[ERROR]", "\x1b[31m", ...args);
 		};
 
+		// eslint-disable-next-line no-console
 		console.info = (...args: unknown[]) => {
 			this.originalConsole.info(...args);
 			writeToTerminal("[INFO]", "\x1b[36m", ...args);
@@ -913,9 +919,14 @@ export class DevConsoleView extends ItemView {
 	}
 
 	private restoreConsole(): void {
+		// Restore original console methods
+		// eslint-disable-next-line no-console
 		console.log = this.originalConsole.log;
+		// eslint-disable-next-line no-console
 		console.warn = this.originalConsole.warn;
+		// eslint-disable-next-line no-console
 		console.error = this.originalConsole.error;
+		// eslint-disable-next-line no-console
 		console.info = this.originalConsole.info;
 	}
 
