@@ -48,12 +48,12 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// Header
-		containerEl.createEl("h2", { text: "Runbook Settings" });
+		;
 
 		// Shell Path
 		new Setting(containerEl)
 			.setName("Shell path")
-			.setDesc("Override default shell path. Leave empty to use $SHELL or /bin/bash.")
+			.setDesc("Overrides the default shell path. Leave empty to use $SHELL or /bin/bash.")
 			.addText((text) =>
 				text
 					.setPlaceholder("e.g., /bin/zsh")
@@ -65,12 +65,12 @@ export class RunbookSettingsTab extends PluginSettingTab {
 			);
 
 		// Interpreter paths section
-		containerEl.createEl("h3", { text: "Interpreter paths" });
+		new Setting(containerEl).setName("Interpreter paths").setHeading();
 
 		// Python Path
 		new Setting(containerEl)
 			.setName("Python interpreter")
-			.setDesc("Path to Python interpreter (default: python3)")
+			.setDesc("Sets the path to the Python interpreter.")
 			.addText((text) =>
 				text
 					.setPlaceholder("python3")
@@ -84,7 +84,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// Node.js Path
 		new Setting(containerEl)
 			.setName("Node.js interpreter")
-			.setDesc("Path to Node.js interpreter (default: node)")
+			.setDesc("Sets the path to the Node.js interpreter.")
 			.addText((text) =>
 				text
 					.setPlaceholder("node")
@@ -98,7 +98,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// TypeScript Path
 		new Setting(containerEl)
 			.setName("TypeScript interpreter")
-			.setDesc("Path to TypeScript interpreter (default: npx ts-node)")
+			.setDesc("Sets the path to the TypeScript interpreter.")
 			.addText((text) =>
 				text
 					.setPlaceholder("npx ts-node")
@@ -110,7 +110,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 			);
 
 		// Terminal appearance section
-		containerEl.createEl("h3", { text: "Terminal appearance" });
+		new Setting(containerEl).setName("Terminal appearance").setHeading();
 
 		// Font Size
 		new Setting(containerEl)
@@ -130,7 +130,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 			);
 
 		// Editor behavior section
-		containerEl.createEl("h3", { text: "Editor behavior" });
+		new Setting(containerEl).setName("Editor behavior").setHeading();
 
 		// Auto-advance Cursor
 		new Setting(containerEl)

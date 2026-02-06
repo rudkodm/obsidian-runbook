@@ -161,7 +161,7 @@ export default class RunbookPlugin extends Plugin {
 	private setupStatusBar(): void {
 		this.statusBarEl = this.addStatusBarItem();
 		this.statusBarEl.addClass("runbook-status-bar-item");
-		this.statusBarEl.setAttribute("aria-label", "Runbook Terminal");
+		this.statusBarEl.setAttribute("aria-label", "Runbook terminal");
 
 		// Click to toggle terminal
 		this.statusBarEl.addEventListener("click", () => {
@@ -376,7 +376,7 @@ export default class RunbookPlugin extends Plugin {
 	private async runAllCells(): Promise<void> {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) {
-			new Notice("No active markdown note");
+			new Notice("No active Markdown note");
 			return;
 		}
 
