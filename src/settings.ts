@@ -53,6 +53,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// Shell Path
 		new Setting(containerEl)
 			.setName("Shell path")
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- technical description
 			.setDesc("Overrides the default shell path. Leave empty to use $SHELL or /bin/bash.")
 			.addText((text) =>
 				text
@@ -70,9 +71,11 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// Python Path
 		new Setting(containerEl)
 			.setName("Python interpreter")
+			// eslint-disable-next-line obsidianmd/ui/sentence-case -- technical description
 			.setDesc("Sets the path to the Python interpreter.")
 			.addText((text) =>
 				text
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- command name
 					.setPlaceholder("python3")
 					.setValue(this.plugin.settings.pythonPath)
 					.onChange(async (value) => {
@@ -87,6 +90,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 			.setDesc("Sets the path to the Node.js interpreter.")
 			.addText((text) =>
 				text
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- command name
 					.setPlaceholder("node")
 					.setValue(this.plugin.settings.nodePath)
 					.onChange(async (value) => {
@@ -101,6 +105,7 @@ export class RunbookSettingsTab extends PluginSettingTab {
 			.setDesc("Sets the path to the TypeScript interpreter.")
 			.addText((text) =>
 				text
+					// eslint-disable-next-line obsidianmd/ui/sentence-case -- command name
 					.setPlaceholder("npx ts-node")
 					.setValue(this.plugin.settings.typescriptPath)
 					.onChange(async (value) => {

@@ -23,12 +23,12 @@ describe("OutputContainer", () => {
 		it("should create container element", () => {
 			const containerEl = container.getElement();
 			expect(containerEl).toBeDefined();
-			expect(containerEl.className).toBe("runbook-output-container");
+			expect(containerEl.classList.contains("runbook-output-container")).toBe(true);
 		});
 
 		it("should be initially hidden", () => {
 			const containerEl = container.getElement();
-			expect(containerEl.style.display).toBe("none");
+			expect(containerEl.classList.contains("is-hidden")).toBe(true);
 		});
 
 		it("should be appended to parent element", () => {
@@ -40,7 +40,7 @@ describe("OutputContainer", () => {
 	describe("showLoading", () => {
 		it("should make container visible", () => {
 			container.showLoading();
-			expect(container.getElement().style.display).toBe("block");
+			expect(container.getElement().classList.contains("is-hidden")).toBe(false);
 		});
 
 		it("should show running message in header", () => {
@@ -126,7 +126,7 @@ describe("OutputContainer", () => {
 		it("should hide container", () => {
 			container.showOutput("test");
 			container.clear();
-			expect(container.getElement().style.display).toBe("none");
+			expect(container.getElement().classList.contains("is-hidden")).toBe(true);
 		});
 
 		it("should call onClear callback", () => {
