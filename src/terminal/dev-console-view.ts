@@ -41,7 +41,7 @@ export class DevConsoleView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Developer Console";
+		return "Developer console";
 	}
 
 	getIcon(): string {

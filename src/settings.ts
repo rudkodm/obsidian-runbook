@@ -64,8 +64,8 @@ export class RunbookSettingsTab extends PluginSettingTab {
 					})
 			);
 
-		// Interpreter Paths Section
-		containerEl.createEl("h3", { text: "Interpreter Paths" });
+		// Interpreter paths section
+		containerEl.createEl("h3", { text: "Interpreter paths" });
 
 		// Python Path
 		new Setting(containerEl)
@@ -109,8 +109,8 @@ export class RunbookSettingsTab extends PluginSettingTab {
 					})
 			);
 
-		// Terminal Appearance Section
-		containerEl.createEl("h3", { text: "Terminal Appearance" });
+		// Terminal appearance section
+		containerEl.createEl("h3", { text: "Terminal appearance" });
 
 		// Font Size
 		new Setting(containerEl)
@@ -129,8 +129,8 @@ export class RunbookSettingsTab extends PluginSettingTab {
 					})
 			);
 
-		// Editor Behavior Section
-		containerEl.createEl("h3", { text: "Editor Behavior" });
+		// Editor behavior section
+		containerEl.createEl("h3", { text: "Editor behavior" });
 
 		// Auto-advance Cursor
 		new Setting(containerEl)
