@@ -111,4 +111,4 @@ export const buildInterpreterCommand = (code: string, language: string): string 
  * @example stripPromptPrefix("> echo hello") // "echo hello"
  */
 export const stripPromptPrefix = (text: string): string =>
-	text.replace(/^[\$>]\s+/, "");
+	text.replace(/^[$>]\s+/, "");
