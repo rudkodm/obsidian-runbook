@@ -207,10 +207,11 @@ export const isPtyAvailable = (): boolean => {
  * @returns Code with empty lines removed
  */
 export const removeEmptyLines = (code: string): string => {
-  return code
+  const lines = code
     .split("\n")
     .filter(line => line.trim() !== "")
     .join("\n");
+  return lines ? lines + "\n" : "";
 };
 
 /**
