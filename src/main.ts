@@ -40,7 +40,7 @@ export default class RunbookPlugin extends Plugin {
 			return;
 		}
 
-		console.log("Runbook: Plugin loading...");
+		console.debug("Runbook: Plugin loading...");
 
 		// Load settings
 		await this.loadSettings();
@@ -73,7 +73,7 @@ export default class RunbookPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new RunbookSettingsTab(this.app, this));
 
-		console.log("Runbook: Plugin loaded successfully");
+		console.debug("Runbook: Plugin loaded successfully");
 	}
 
 	async loadSettings() {
@@ -85,7 +85,7 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	async onunload() {
-		console.log("Runbook: Plugin unloading...");
+		console.debug("Runbook: Plugin unloading...");
 
 		// Cleanup session manager
 		this.sessionManager?.cleanupAll();
@@ -103,7 +103,7 @@ export default class RunbookPlugin extends Plugin {
 		this.app.workspace.detachLeavesOfType(XTERM_VIEW_TYPE);
 		this.app.workspace.detachLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
 
-		console.log("Runbook: Plugin unloaded");
+		console.debug("Runbook: Plugin unloaded");
 	}
 
 	/**
