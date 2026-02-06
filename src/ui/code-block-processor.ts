@@ -111,7 +111,7 @@ function addRunButton(
 	let isRunning = false;
 
 	// Click handler - execute in terminal
-	runBtn.addEventListener("click", async (e) => {
+	const handleRunClick = async (e: MouseEvent): Promise<void> => {
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -154,6 +154,9 @@ function addRunButton(
 			isRunning = false;
 			runBtn.classList.remove("is-running");
 		}
+	};
+	runBtn.addEventListener("click", (e) => {
+		void handleRunClick(e);
 	});
 }
 

@@ -165,7 +165,9 @@ export default class RunbookPlugin extends Plugin {
 		this.statusBarEl.setAttribute("aria-label", "Runbook Terminal");
 
 		// Click to toggle terminal
-		this.statusBarEl.addEventListener("click", () => this.toggleTerminal());
+		this.statusBarEl.addEventListener("click", () => {
+			void this.toggleTerminal();
+		});
 
 		// Subscribe to terminal state changes
 		this.unsubscribeStateChange = onTerminalStateChange(() => {
