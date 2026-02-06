@@ -32,6 +32,7 @@ Turn Obsidian into an **executable runbook** for DevOps, SREs, and developers. R
 - [Settings](#settings)
 - [Command Reference](#command-reference)
 - [Runme Compatibility](#runme-compatibility)
+- [Security Considerations](#security-considerations)
 - [Known Limitations](#known-limitations)
 - [Tech Stack](#tech-stack)
 
@@ -315,6 +316,16 @@ Supports tab completion, command history, and formatted ANSI output.
 Obsidian Runbook adopts the [Runme](https://runme.dev) code block annotation syntax. Runbooks authored in Obsidian Runbook can be opened and executed in Runme (VS Code) and vice versa.
 
 Supported shared attributes: `name`, `cwd`, `excludeFromRunAll`, `interactive`, `interpreter`.
+
+## Security Considerations
+
+This plugin executes code and commands in real terminal sessions on your system. This means:
+
+- **File access is not limited to your vault.** Commands can read, write, or delete any files your user account has access to.
+- **Commands run with your permissions.** The plugin does not sandbox execution — it runs as you.
+- **Be careful with untrusted runbooks.** Only execute code blocks from sources you trust.
+
+This is by design — the plugin is meant for DevOps, SRE, and development workflows where full system access is necessary. If you need sandboxed execution, consider running Obsidian in a container or VM.
 
 ## Known Limitations
 
