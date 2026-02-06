@@ -151,7 +151,7 @@ export default class RunbookPlugin extends Plugin {
 		// Run All Cells (execute entire runbook)
 		this.addCommand({
 			id: "run-all",
-			name: "Run All",
+			name: "Run all",
 			callback: () => this.runAllCells(),
 		});
 	}
