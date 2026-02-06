@@ -53,11 +53,10 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// Shell Path
 		new Setting(containerEl)
 			.setName("Shell path")
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- technical description
-			.setDesc("Overrides the default shell path. Leave empty to use $SHELL or /bin/bash.")
+			.setDesc("Custom shell executable. Leave empty for system default.")
 			.addText((text) =>
 				text
-					.setPlaceholder("e.g., /bin/zsh")
+					.setPlaceholder("E.g., /bin/zsh")
 					.setValue(this.plugin.settings.shellPath)
 					.onChange(async (value) => {
 						this.plugin.settings.shellPath = value;
@@ -71,12 +70,10 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// Python Path
 		new Setting(containerEl)
 			.setName("Python interpreter")
-			// eslint-disable-next-line obsidianmd/ui/sentence-case -- technical description
-			.setDesc("Sets the path to the Python interpreter.")
+			.setDesc("Python executable location.")
 			.addText((text) =>
 				text
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- command name
-					.setPlaceholder("python3")
+					.setPlaceholder("Default: python3")
 					.setValue(this.plugin.settings.pythonPath)
 					.onChange(async (value) => {
 						this.plugin.settings.pythonPath = value || "python3";
@@ -87,11 +84,10 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// Node.js Path
 		new Setting(containerEl)
 			.setName("Node.js interpreter")
-			.setDesc("Sets the path to the Node.js interpreter.")
+			.setDesc("Node.js executable location.")
 			.addText((text) =>
 				text
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- command name
-					.setPlaceholder("node")
+					.setPlaceholder("Default: node")
 					.setValue(this.plugin.settings.nodePath)
 					.onChange(async (value) => {
 						this.plugin.settings.nodePath = value || "node";
@@ -102,11 +98,10 @@ export class RunbookSettingsTab extends PluginSettingTab {
 		// TypeScript Path
 		new Setting(containerEl)
 			.setName("TypeScript interpreter")
-			.setDesc("Sets the path to the TypeScript interpreter.")
+			.setDesc("TypeScript runner location.")
 			.addText((text) =>
 				text
-					// eslint-disable-next-line obsidianmd/ui/sentence-case -- command name
-					.setPlaceholder("npx ts-node")
+					.setPlaceholder("Default: npx ts-node")
 					.setValue(this.plugin.settings.typescriptPath)
 					.onChange(async (value) => {
 						this.plugin.settings.typescriptPath = value || "npx ts-node";
