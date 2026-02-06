@@ -84,7 +84,7 @@ export default class RunbookPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async onunload() {
+	onunload() {
 		console.debug("Runbook: Plugin unloading...");
 
 		// Cleanup session manager
@@ -99,9 +99,8 @@ export default class RunbookPlugin extends Plugin {
 		this.styleEl?.remove();
 		this.styleEl = null;
 
-		// Detach all terminal views (triggers onClose which kills PTY sessions)
-		this.app.workspace.detachLeavesOfType(XTERM_VIEW_TYPE);
-		this.app.workspace.detachLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
+		// Note: Don't detach leaves here - Obsidian handles view cleanup automatically.
+		// Detaching in onunload resets user's leaf positions when plugin reloads.
 
 		console.debug("Runbook: Plugin unloaded");
 	}
