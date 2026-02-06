@@ -2,7 +2,7 @@
 
 [![Obsidian](https://img.shields.io/badge/Obsidian-v1.0+-7C3AED?logo=obsidian&logoColor=white)](https://obsidian.md)
 [![License](https://img.shields.io/github/license/rudkodm/obsidian-runbook)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.0.12-blue)](https://github.com/rudkodm/obsidian-runbook/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/rudkodm/obsidian-runbook/releases)
 
 Turn Obsidian into an **executable runbook** for DevOps, SREs, and developers. Run code blocks, execute commands line by line, and debug scripts directly from your notes — with a real, stateful terminal session.
 
@@ -40,7 +40,7 @@ Turn Obsidian into an **executable runbook** for DevOps, SREs, and developers. R
 ### Manual Install
 
 1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/rudkodm/obsidian-runbook/releases)
-2. Create a folder: `<your-vault>/.obsidian/plugins/obsidian-runbook/`
+2. Create a folder: `<your-vault>/.obsidian/plugins/runbook/`
 3. Copy the three files into that folder
 4. Open Obsidian → **Settings** → **Community Plugins** → Enable **Runbook**
 

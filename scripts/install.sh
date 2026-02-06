@@ -12,7 +12,7 @@ if [ -z "$OBSIDIAN_PLUGINS_HOME" ]; then
 	exit 1
 fi
 
-PLUGIN_DIR="$OBSIDIAN_PLUGINS_HOME/obsidian-runbook"
+PLUGIN_DIR="$OBSIDIAN_PLUGINS_HOME/runbook"
 
 # Create plugin directory
 mkdir -p "$PLUGIN_DIR"
