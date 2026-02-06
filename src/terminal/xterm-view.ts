@@ -113,7 +113,7 @@ export class XtermView extends ItemView {
 		return "terminal";
 	}
 
-	async onOpen(): Promise<void> {
+	onOpen(): void {
 		// Consume pending config (set before setViewState)
 		this.initialCwd = XtermView.pendingCwd;
 		XtermView.pendingCwd = null;
@@ -154,7 +154,7 @@ export class XtermView extends ItemView {
 		this.fitAddon.fit();
 
 		// Start the shell session
-		await this.startSession();
+		void this.startSession();
 
 		// Handle resize with debouncing
 		this.resizeObserver = new ResizeObserver(() => {
@@ -442,7 +442,7 @@ export class XtermView extends ItemView {
 		this.showPrompt();
 	}
 
-	async onClose(): Promise<void> {
+	onClose(): void {
 		// Disable auto-restart during close
 		this.autoRestart = false;
 

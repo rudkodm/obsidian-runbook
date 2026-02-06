@@ -49,7 +49,7 @@ export class DevConsoleView extends ItemView {
 		return "code";
 	}
 
-	async onOpen(): Promise<void> {
+	onOpen(): void {
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("runbook-dev-console-view");
@@ -97,7 +97,7 @@ export class DevConsoleView extends ItemView {
 		this.terminal.focus();
 	}
 
-	async onClose(): Promise<void> {
+	onClose(): void {
 		// Restore console methods
 		this.restoreConsole();
 
@@ -245,8 +245,7 @@ export class DevConsoleView extends ItemView {
 			"",
 			"\x1b[33mProperties:\x1b[0m",
 			"  vault.adapter         File system adapter",
-			// eslint-disable-next-line obsidianmd/hardcoded-config-path -- help text example
-			"  vault.configDir       Config directory (usually .obsidian)",
+			"  vault.configDir       Config directory path",
 			"",
 			"\x1b[33mUseful methods:\x1b[0m",
 			"  vault.getName()                  Get vault name",
