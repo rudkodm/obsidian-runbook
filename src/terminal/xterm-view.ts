@@ -87,7 +87,7 @@ export class XtermView extends ItemView {
 	setNoteName(name: string): void {
 		this.noteName = name;
 		// Trigger Obsidian to refresh the tab/header text
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		 
 		(this.leaf as any).updateHeader?.();
 	}
 
@@ -278,7 +278,7 @@ export class XtermView extends ItemView {
 			this.interpreterSession.spawn();
 			this.setState("running");
 			// Update header now that interpreterSession is set (affects getDisplayText)
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			 
 			(this.leaf as any).updateHeader?.();
 			console.debug(
 				`Runbook: Interpreter (${this.interpreterConfig!.type}) spawned, pid:`,

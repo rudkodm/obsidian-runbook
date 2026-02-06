@@ -162,7 +162,7 @@ export class SessionManager {
 	getTerminalLeaf(): WorkspaceLeaf {
 		const existing = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		if (existing.length > 0) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			 
 			const parent = (existing[0] as any).parent;
 			if (parent) {
 				return this.app.workspace.createLeafInParent(parent, -1);
