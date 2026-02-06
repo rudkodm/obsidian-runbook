@@ -121,12 +121,12 @@ export default class RunbookPlugin extends Plugin {
 	 * Register all plugin commands
 	 */
 	private registerCommands(): void {
-		// Execute line or selection (Shift + Cmd/Ctrl + Enter)
+		// Execute line or selection
+		// Note: Users can assign their own hotkey via Settings > Hotkeys
 		this.addCommand({
 			id: "execute-line-or-selection",
 			name: "Execute line or selection",
 			editorCallback: (editor: Editor) => this.executeLineOrSelection(editor),
-			hotkeys: [{ modifiers: ["Mod", "Shift"], key: "Enter" }],
 		});
 
 		// Terminal commands
