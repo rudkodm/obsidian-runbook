@@ -141,13 +141,6 @@ if __name__ == '__main__':
 `;
 
 /**
- * Result type for command lookup
- */
-type CommandResult<T> =
-  | { success: true; value: T }
-  | { success: false; error: string };
-
-/**
  * Find Python 3 executable
  * @returns Python command or null if not found
  */

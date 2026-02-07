@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, App } from "obsidian";
+import { ItemView, WorkspaceLeaf } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
