@@ -443,7 +443,7 @@ export default class RunbookPlugin extends Plugin {
 						`Run All: ${noteName} (${langKey})`,
 						block.language,
 						cwd,
-						block.attributes.interpreter as string | undefined,
+						block.attributes.interpreter,
 					);
 					if (!interpView) {
 						new Notice(`Failed to create ${langKey} interpreter session`);
