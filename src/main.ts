@@ -415,7 +415,7 @@ export default class RunbookPlugin extends Plugin {
 		const leaves = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		for (const leaf of leaves) {
 			if (leaf.view === shellView) {
-				this.app.workspace.revealLeaf(leaf);
+				void this.app.workspace.revealLeaf(leaf);
 				break;
 			}
 		}
@@ -510,7 +510,7 @@ export default class RunbookPlugin extends Plugin {
 				}
 			} else {
 				// Terminal exists but not focused — reveal it
-				this.app.workspace.revealLeaf(existing[0]);
+				void this.app.workspace.revealLeaf(existing[0]);
 				const view = existing[0].view as XtermView;
 				view?.focus?.();
 			}
@@ -528,7 +528,7 @@ export default class RunbookPlugin extends Plugin {
 			: this.app.workspace.getLeaf("split", "horizontal");
 		if (leaf) {
 			await leaf.setViewState({ type: XTERM_VIEW_TYPE, active: true });
-			this.app.workspace.revealLeaf(leaf);
+			void this.app.workspace.revealLeaf(leaf);
 
 			const view = leaf.view as XtermView;
 			if (view?.focus) {
@@ -544,7 +544,7 @@ export default class RunbookPlugin extends Plugin {
 		const existing = this.app.workspace.getLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
 
 		if (existing.length > 0) {
-			this.app.workspace.revealLeaf(existing[0]);
+			void this.app.workspace.revealLeaf(existing[0]);
 			const view = existing[0].view as DevConsoleView;
 			view?.focus?.();
 			return;
@@ -553,7 +553,7 @@ export default class RunbookPlugin extends Plugin {
 		const leaf = this.app.workspace.getLeaf("split", "vertical");
 		if (leaf) {
 			await leaf.setViewState({ type: DEV_CONSOLE_VIEW_TYPE, active: true });
-			this.app.workspace.revealLeaf(leaf);
+			void this.app.workspace.revealLeaf(leaf);
 
 			const view = leaf.view as DevConsoleView;
 			if (view?.focus) {
