@@ -1,6 +1,5 @@
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
-import * as os from "os";
 import * as fs from "fs";
 import { SessionState, InterpreterType, IInterpreterSession } from "./types";
 import { PYTHON_PTY_SCRIPT, findPython, isPtyAvailable, removeEmptyLines } from "./utils";

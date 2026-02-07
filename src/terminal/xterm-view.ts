@@ -7,7 +7,7 @@ import { ShellSession } from "../shell/session";
 import { InterpreterType } from "../shell/types";
 import { BaseInterpreterSession } from "../shell/interpreter-base";
 import { createInterpreterSession } from "../shell/interpreters";
-import { ANSI, ANSI_COLORS } from "../ui/theme/ansi-colors";
+import { ANSI } from "../ui/theme/ansi-colors";
 import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";

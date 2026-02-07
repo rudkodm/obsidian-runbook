@@ -12,7 +12,6 @@ import {
 	getInterpreterType,
 	normalizeLanguage,
 	CodeBlockAttributes,
-	CodeBlockInfo,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
 import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xterm-view";
