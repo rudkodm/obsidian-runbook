@@ -12,7 +12,6 @@ import {
 	getInterpreterType,
 	normalizeLanguage,
 	CodeBlockAttributes,
-	CodeBlockInfo,
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
 import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xterm-view";
@@ -444,7 +443,7 @@ export default class RunbookPlugin extends Plugin {
 						`Run All: ${noteName} (${langKey})`,
 						block.language,
 						cwd,
-						block.attributes.interpreter as string | undefined,
+						block.attributes.interpreter,
 					);
 					if (!interpView) {
 						new Notice(`Failed to create ${langKey} interpreter session`);

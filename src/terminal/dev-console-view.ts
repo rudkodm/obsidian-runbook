@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, App } from "obsidian";
+import { ItemView, WorkspaceLeaf } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
@@ -842,7 +842,7 @@ export class DevConsoleView extends ItemView {
 				return `\x1b[33m${value}\x1b[0m`;
 			case "function":
 				return `\x1b[36m[Function: ${(value as Function).name || "anonymous"}]\x1b[0m`;
-			case "object":
+			case "object": {
 				if (Array.isArray(value)) {
 					if (value.length === 0) return "[]";
 					if (value.length > 5) {
@@ -880,6 +880,7 @@ export class DevConsoleView extends ItemView {
 					.map((k) => `${k}: ${this.formatValue((value as Record<string, unknown>)[k], depth + 1)}`)
 					.join(", ");
 				return `{${props}${keys.length > 3 ? ", ..." : ""}}`;
+			}
 
 			default:
 				return String(value);

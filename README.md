@@ -349,4 +349,4 @@ This is by design — the plugin is meant for DevOps, SRE, and development workf
 
 ## License
 
-[GPL-3.0](LICENSE)
+[Apache-2.0](LICENSE)

@@ -1,6 +1,5 @@
 import { InterpreterType } from "../shell/types";
 import {
-	getLanguageRegistry,
 	isLanguageSupported as registryHasLanguage,
 	normalizeLanguageName,
 	isShellLanguage as registryIsShell,
