@@ -242,7 +242,7 @@ export const retry = async <T>(
     }
   }
 
-  throw lastError;
+  throw lastError ?? new Error("All retry attempts failed");
 };
 
 /**
