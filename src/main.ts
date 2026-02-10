@@ -98,14 +98,14 @@ export default class RunbookPlugin extends Plugin {
 	 * Register terminal view
 	 */
 	private registerViews(): void {
+		// Clean up any orphaned terminal leaves from previous plugin loads
+		// This prevents "plugin no longer active" errors after hot-reload
+		this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE).forEach((leaf) => {
+			leaf.detach();
+		});
+
 		// xterm terminal view (each instance is a separate terminal with PTY)
-		// Wrap in try-catch to handle hot-reload edge cases where view type may already exist
-		try {
-			this.registerView(XTERM_VIEW_TYPE, (leaf) => new XtermView(leaf));
-		} catch (e) {
-			// View type already registered (hot-reload) - safe to ignore
-			console.debug("Runbook: View type already registered, skipping");
-		}
+		this.registerView(XTERM_VIEW_TYPE, (leaf) => new XtermView(leaf));
 	}
 
 	/**
