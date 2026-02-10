@@ -241,7 +241,7 @@ export class XtermView extends ItemView {
 		} catch (err) {
 			console.error("Runbook: Failed to spawn Python PTY, falling back:", err);
 			this.ptySession = null;
-			await this.initFallbackSession();
+			this.initFallbackSession();
 		}
 	}
 
