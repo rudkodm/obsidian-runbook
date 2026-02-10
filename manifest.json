@@ -1,7 +1,7 @@
 {
 	"id": "runbook",
 	"name": "Runbook",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"minAppVersion": "1.0.0",
 	"description": "Execute code blocks directly from your notes using a persistent terminal session.",
 	"author": "rudkodm",
