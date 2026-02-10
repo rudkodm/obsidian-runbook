@@ -4,32 +4,18 @@ import fs from "fs";
 
 const prod = process.argv[2] === "production";
 
-// Sync version from VERSION file (single source of truth) to all other files
+// Read version from manifest.json (single source of truth)
+// and update versions.json when minAppVersion changes
 function syncVersions() {
-	const version = fs.readFileSync("VERSION", "utf8").trim();
-	
-	// Sync to manifest.json
 	const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
-	if (manifest.version !== version) {
-		manifest.version = version;
-		fs.writeFileSync("manifest.json", JSON.stringify(manifest, null, "\t") + "\n");
-		console.log(`📦 Synced manifest.json to ${version}`);
-	}
-
-	// Sync to package.json
-	const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-	if (pkg.version !== version) {
-		pkg.version = version;
-		fs.writeFileSync("package.json", JSON.stringify(pkg, null, "\t") + "\n");
-		console.log(`📦 Synced package.json to ${version}`);
-	}
+	const version = manifest.version;
+	const minAppVersion = manifest.minAppVersion;
 
 	// Sync to versions.json - only when minAppVersion changes
 	// See: https://docs.obsidian.md/Reference/Versions
 	const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
 	const existingMinVersions = Object.values(versions);
 	const latestMinVersion = existingMinVersions[existingMinVersions.length - 1];
-	const minAppVersion = manifest.minAppVersion;
 	
 	if (minAppVersion !== latestMinVersion) {
 		versions[version] = minAppVersion;
