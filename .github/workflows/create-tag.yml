@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'manifest.json'
+      - 'VERSION'
 
 jobs:
   create-tag:
@@ -18,10 +18,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get version from manifest
+      - name: Get version from VERSION file
         id: version
         run: |
-          VERSION=$(node -p "require('./manifest.json').version")
+          VERSION=$(cat VERSION | tr -d '[:space:]')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
