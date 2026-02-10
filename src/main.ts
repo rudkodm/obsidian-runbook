@@ -15,7 +15,6 @@ import {
 } from "./editor/code-block";
 import { createCodeBlockProcessor } from "./ui/code-block-processor";
 import { XtermView, XTERM_VIEW_TYPE, onTerminalStateChange } from "./terminal/xterm-view";
-import { DevConsoleView, DEV_CONSOLE_VIEW_TYPE } from "./terminal/dev-console-view";
 import { SessionManager } from "./runbook/session-manager";
 import { RunbookSettings, DEFAULT_SETTINGS, RunbookSettingsTab } from "./settings";
 
@@ -96,14 +95,17 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
-	 * Register terminal and console views
+	 * Register terminal view
 	 */
 	private registerViews(): void {
+		// Clean up any orphaned terminal leaves from previous plugin loads
+		// This prevents "plugin no longer active" errors after hot-reload
+		this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE).forEach((leaf) => {
+			leaf.detach();
+		});
+
 		// xterm terminal view (each instance is a separate terminal with PTY)
 		this.registerView(XTERM_VIEW_TYPE, (leaf) => new XtermView(leaf));
-
-		// Developer console view
-		this.registerView(DEV_CONSOLE_VIEW_TYPE, (leaf) => new DevConsoleView(leaf));
 	}
 
 	/**
@@ -129,12 +131,6 @@ export default class RunbookPlugin extends Plugin {
 			id: "new-terminal-session",
 			name: "New terminal session",
 			callback: () => this.createNewTerminal(),
-		});
-
-		this.addCommand({
-			id: "open-dev-console",
-			name: "Open developer console",
-			callback: () => this.openDevConsole(),
 		});
 
 		// Run All Cells (execute entire runbook)
@@ -531,31 +527,6 @@ export default class RunbookPlugin extends Plugin {
 			void this.app.workspace.revealLeaf(leaf);
 
 			const view = leaf.view as XtermView;
-			if (view?.focus) {
-				setTimeout(() => view.focus(), 100);
-			}
-		}
-	}
-
-	/**
-	 * Open or focus the developer console
-	 */
-	private async openDevConsole(): Promise<void> {
-		const existing = this.app.workspace.getLeavesOfType(DEV_CONSOLE_VIEW_TYPE);
-
-		if (existing.length > 0) {
-			void this.app.workspace.revealLeaf(existing[0]);
-			const view = existing[0].view as DevConsoleView;
-			view?.focus?.();
-			return;
-		}
-
-		const leaf = this.app.workspace.getLeaf("split", "vertical");
-		if (leaf) {
-			await leaf.setViewState({ type: DEV_CONSOLE_VIEW_TYPE, active: true });
-			void this.app.workspace.revealLeaf(leaf);
-
-			const view = leaf.view as DevConsoleView;
 			if (view?.focus) {
 				setTimeout(() => view.focus(), 100);
 			}

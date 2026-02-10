@@ -158,6 +158,9 @@ export const colored = {
 /**
  * Strip all ANSI codes from text
  */
-// eslint-disable-next-line no-control-regex -- ANSI escape codes require control characters
-export const stripAnsi = (text: string): string =>
-	text.replace(/\u001b\[[0-9;]*m/g, "");
+export const stripAnsi = (text: string): string => {
+	// Use String.fromCharCode to avoid control character in source (ANSI escape = 0x1B = 27)
+	const escapeChar = String.fromCharCode(27);
+	const ansiPattern = new RegExp(`${escapeChar}\\[[0-9;]*m`, "g");
+	return text.replace(ansiPattern, "");
+};

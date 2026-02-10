@@ -171,25 +171,6 @@ export const XTERM_STYLES = `
 	background-color: var(--background-modifier-border-hover);
 }
 
-/* Developer console styles */
-.runbook-dev-console-view {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	padding: 0;
-	overflow: hidden;
-}
-
-.runbook-dev-console-container {
-	flex: 1;
-	min-height: 0;
-	padding: 4px;
-}
-
-.runbook-dev-console-container .xterm {
-	height: 100%;
-}
-
 /* Status bar terminal indicator */
 .runbook-status-bar-item {
 	display: flex;
