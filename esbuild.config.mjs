@@ -18,12 +18,16 @@ function syncVersions() {
 		console.log(`📦 Synced package.json version to ${version}`);
 	}
 
-	// Sync to versions.json
+	// Sync to versions.json - only when minAppVersion changes
+	// See: https://docs.obsidian.md/Reference/Versions
 	const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
-	if (!versions[version]) {
+	const existingMinVersions = Object.values(versions);
+	const latestMinVersion = existingMinVersions[existingMinVersions.length - 1];
+	
+	if (minAppVersion !== latestMinVersion) {
 		versions[version] = minAppVersion;
 		fs.writeFileSync("versions.json", JSON.stringify(versions, null, "\t") + "\n");
-		console.log(`📋 Added ${version} to versions.json`);
+		console.log(`📋 Updated versions.json: ${version} requires Obsidian ${minAppVersion}`);
 	}
 }
 
