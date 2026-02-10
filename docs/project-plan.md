@@ -233,39 +233,11 @@ All validation tests passed:
 
 ---
 
-## Phase 6b: Developer Console ✅ COMPLETE (Bonus Feature)
+## Phase 6b: Developer Console ❌ REMOVED
 
-**Note:** This feature was not in the original plan but adds significant debugging value.
-
-### 6b.1 Console View
-- [x] Create `src/terminal/dev-console-view.ts`
-- [x] JavaScript REPL using xterm.js
-- [x] Register as Obsidian ItemView
-- [x] Command: `Runbook: Open developer console`
-
-### 6b.2 Obsidian API Access
-- [x] Expose `app` - Obsidian App instance
-- [x] Expose `workspace` - Workspace manager
-- [x] Expose `vault` - Vault API
-- [x] Expose `plugins` - Plugin manager
-- [x] `clear()` helper function
-
-### 6b.3 Help System
-- [x] `help()` - Main help
-- [x] `help.app()` - App object reference
-- [x] `help.workspace()` - Workspace reference
-- [x] `help.vault()` - Vault reference
-- [x] `help.plugins()` - Plugins reference
-- [x] `help.examples()` - Usage examples
-- [x] `help.shortcuts()` - Keyboard shortcuts
-
-### 6b.4 Advanced Features
-- [x] Tab completion for objects and properties
-- [x] Command history (up/down arrows)
-- [x] Line editing (Ctrl+A, Ctrl+E, arrow keys)
-- [x] Console interception (logs appear in console)
-- [x] Formatted output with ANSI colors
-- [x] Theme integration with Obsidian
+**Note:** This feature was implemented but later removed to simplify the codebase
+and resolve Obsidian community plugin scanner issues. Users can use Obsidian's
+native developer console (Ctrl+Shift+I / Cmd+Opt+I) instead.
 
 ---
 
@@ -557,8 +529,7 @@ obsidian-runbook/
 │   │   └── session-manager.ts      # Per-note session isolation, shared terminal pane
 │   ├── terminal/
 │   │   ├── xterm-view.ts           # xterm.js terminal + interpreter session support
-│   │   ├── xterm-styles.ts         # Terminal CSS styles
-│   │   └── dev-console-view.ts     # Developer console
+│   │   └── xterm-styles.ts         # Terminal CSS styles
 │   └── ui/
 │       ├── code-block-processor.ts
 │       └── output-container.ts

@@ -14,7 +14,6 @@ Turn Obsidian into an **executable runbook** for DevOps, SREs, and developers. R
 - 📓 **Session isolation** — Each note gets its own shell and interpreter sessions
 - ▶️ **Run All** — Execute an entire runbook sequentially with one command
 - 🏷️ **Runme compatible** — Portable code block annotations work in both Obsidian Runbook and [Runme](https://runme.dev) (VS Code)
-- 🛠️ **Developer console** — Built-in JavaScript REPL with full Obsidian API access
 - ⚙️ **Configurable** — Custom interpreter paths, font sizes, and editor behavior
 
 ## Table of Contents
@@ -28,7 +27,6 @@ Turn Obsidian into an **executable runbook** for DevOps, SREs, and developers. R
 - [Session Isolation](#session-isolation)
 - [Run All](#run-all)
 - [Terminal](#terminal)
-- [Developer Console](#developer-console)
 - [Settings](#settings)
 - [Command Reference](#command-reference)
 - [Runme Compatibility](#runme-compatibility)
@@ -256,36 +254,6 @@ The terminal panel uses **xterm.js** for a full-featured terminal experience:
 
 Toggle the terminal: **Cmd/Ctrl + P** → **Runbook: Toggle terminal**
 
-## Developer Console
-
-A built-in JavaScript REPL with direct access to the Obsidian API:
-
-**Cmd/Ctrl + P** → **Runbook: Open developer console**
-
-Available globals:
-
-| Variable | Description |
-|----------|-------------|
-| `app` | Obsidian App instance |
-| `workspace` | Workspace manager |
-| `vault` | Vault API |
-| `plugins` | Plugin manager |
-| `clear()` | Clear console |
-| `help()` | Show help |
-
-```javascript
-// List all markdown files
-vault.getMarkdownFiles().map(f => f.path)
-
-// Get active file content
-await vault.read(workspace.getActiveFile())
-
-// List enabled plugins
-Object.keys(plugins.plugins)
-```
-
-Supports tab completion, command history, and formatted ANSI output.
-
 ## Settings
 
 **Settings** → **Community Plugins** → **Runbook**
@@ -309,7 +277,6 @@ Supports tab completion, command history, and formatted ANSI output.
 | Start shell session | — | Start a new shell session |
 | Get session status | — | Show current session info |
 | Restart shell | — | Restart the active shell session |
-| Open developer console | — | Open the JS developer console |
 
 ## Runme Compatibility
 

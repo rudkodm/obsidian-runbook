@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session isolation per note
 - "Run All" command to execute entire runbooks sequentially
 - Runme-compatible code block annotations
-- Built-in JavaScript REPL with Obsidian API access (Developer Console)
 - Configurable settings: interpreter paths, font sizes, editor behavior
 - Tab management for multiple terminal sessions
 
