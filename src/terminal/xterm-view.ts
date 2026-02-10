@@ -181,15 +181,15 @@ export class XtermView extends ItemView {
 	/**
 	 * Start the session (interpreter REPL, shell PTY, or fallback)
 	 */
-	private async startSession(): Promise<void> {
+	private startSession(): void {
 		this.setState("starting");
 
 		if (this.interpreterConfig) {
 			// Interpreter REPL mode (sync)
 			this.initInterpreterSession();
 		} else if (PythonPtySession.isAvailable()) {
-			// Shell PTY mode (async)
-			await this.initPythonPtySession();
+			// Shell PTY mode
+			this.initPythonPtySession();
 		} else {
 			// Fallback shell mode (sync)
 			console.debug("Runbook: Python PTY not available, using fallback shell");
@@ -200,7 +200,7 @@ export class XtermView extends ItemView {
 	/**
 	 * Initialize PTY session using Python's pty module
 	 */
-	private async initPythonPtySession(): Promise<void> {
+	private initPythonPtySession(): void {
 		this.usingFallback = false;
 
 		// Create Python-based PTY session
@@ -406,7 +406,7 @@ export class XtermView extends ItemView {
 	/**
 	 * Restart the shell session
 	 */
-	async restartSession(): Promise<void> {
+	restartSession(): void {
 		// Clean up existing sessions
 		this.ptySession?.kill();
 		this.interpreterSession?.kill();
@@ -416,7 +416,7 @@ export class XtermView extends ItemView {
 		this.fallbackSession = null;
 
 		this.terminal?.write("\r\n");
-		await this.startSession();
+		this.startSession();
 	}
 
 	/**
