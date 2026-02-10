@@ -1,6 +1,7 @@
 {
 	"name": "obsidian-runbook",
-	"version": "1.0.2",
+	"version": "1.0.0",
+	"versionComment": "Version synced automatically from manifest.json during build",
 	"description": "Execute code blocks directly from your notes using a persistent terminal session.",
 	"main": "main.js",
 	"scripts": {
