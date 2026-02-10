@@ -158,5 +158,6 @@ export const colored = {
 /**
  * Strip all ANSI codes from text
  */
+// eslint-disable-next-line no-control-regex -- ANSI escape codes require control characters
 export const stripAnsi = (text: string): string =>
-	text.replace(/\x1b\[[0-9;]*m/g, "");
+	text.replace(/\u001b\[[0-9;]*m/g, "");

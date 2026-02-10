@@ -242,7 +242,7 @@ export class XtermView extends ItemView {
 	/**
 	 * Initialize an interactive interpreter REPL session (python3, node, ts-node)
 	 */
-	private async initInterpreterSession(): Promise<void> {
+	private initInterpreterSession(): void {
 		this.usingFallback = false;
 
 		this.interpreterSession = createInterpreterSession(this.interpreterConfig!.type, {
@@ -298,7 +298,7 @@ export class XtermView extends ItemView {
 	/**
 	 * Initialize fallback session (basic shell without PTY)
 	 */
-	private async initFallbackSession(): Promise<void> {
+	private initFallbackSession(): void {
 		this.usingFallback = true;
 
 		// Create fallback shell session
@@ -311,7 +311,7 @@ export class XtermView extends ItemView {
 				// Enter pressed - execute command
 				this.terminal?.write("\r\n");
 				if (inputBuffer.trim()) {
-					this.executeInFallback(inputBuffer);
+					void this.executeInFallback(inputBuffer);
 				} else {
 					this.showPrompt();
 				}
@@ -365,7 +365,7 @@ export class XtermView extends ItemView {
 			// Small delay before restart
 			setTimeout(() => {
 				if (this._state === "exited") {
-					this.restartSession();
+					void this.restartSession();
 				}
 			}, 500);
 		} else {
@@ -393,7 +393,7 @@ export class XtermView extends ItemView {
 		const disposable = this.terminal?.onData((data: string) => {
 			if (data === "\r") {
 				disposable?.dispose();
-				this.restartSession();
+				void this.restartSession();
 			}
 		});
 	}
@@ -543,7 +543,7 @@ export class XtermView extends ItemView {
 				throw new Error("Shell session not running");
 			}
 			this.terminal?.write(`\r${ANSI.CLEAR_LINE}${ANSI.GREEN}$${ANSI.RESET} ${command}\r\n`);
-			this.executeInFallback(command);
+			void this.executeInFallback(command);
 		} else if (this.interpreterSession?.isAlive) {
 			// Interpreter mode - write directly to REPL
 			this.interpreterSession.write(command + "\n");
