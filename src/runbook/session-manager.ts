@@ -3,6 +3,7 @@ import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
 import { InterpreterType } from "../shell/types";
 import { normalizeLanguage } from "../editor/code-block";
 import { RunbookSettings } from "../settings";
+import type { WorkspaceLeafExt } from "../types/obsidian-internals";
 
 /**
  * Manages per-note terminal sessions.
@@ -162,8 +163,7 @@ export class SessionManager {
 	getTerminalLeaf(): WorkspaceLeaf {
 		const existing = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		if (existing.length > 0) {
-			 
-			const parent = (existing[0] as any).parent;
+			const parent = (existing[0] as WorkspaceLeafExt).parent;
 			if (parent) {
 				return this.app.workspace.createLeafInParent(parent, -1);
 			}

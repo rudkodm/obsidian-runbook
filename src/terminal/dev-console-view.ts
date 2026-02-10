@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf } from "obsidian";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
+import type { AppWithPlugins } from "../types/obsidian-internals";
 
 export const DEV_CONSOLE_VIEW_TYPE = "runbook-dev-console";
 
@@ -28,7 +29,7 @@ export class DevConsoleView extends ItemView {
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
 		// Store original console methods (DevConsole intercepts console output intentionally)
-		 
+		// eslint-disable-next-line no-console -- DevConsole stores console refs to intercept and forward output
 		this.originalConsole = {
 			log: console.log.bind(console),
 			warn: console.warn.bind(console),
@@ -611,7 +612,7 @@ export class DevConsoleView extends ItemView {
 			app: this.app,
 			workspace: this.app.workspace,
 			vault: this.app.vault,
-			plugins: (this.app as any).plugins,
+			plugins: (this.app as AppWithPlugins).plugins,
 			clear: () => {},
 			help: Object.assign(() => {}, {
 				app: () => {},
@@ -753,7 +754,7 @@ export class DevConsoleView extends ItemView {
 		const app = this.app;
 		const workspace = app.workspace;
 		const vault = app.vault;
-		const plugins = (app as any).plugins;
+		const plugins = (app as AppWithPlugins).plugins;
 
 		// Helper functions
 		const clear = () => {
@@ -795,10 +796,12 @@ export class DevConsoleView extends ItemView {
 
 		try {
 			// Try as expression first
+			// eslint-disable-next-line no-new-func -- DevConsole REPL intentionally uses Function constructor for user code evaluation
 			const fn = new Function(...keys, `return (${code})`);
 			return fn(...values);
 		} catch {
 			// Try as statement
+			// eslint-disable-next-line no-new-func -- DevConsole REPL intentionally uses Function constructor for user code evaluation
 			const fn = new Function(...keys, code);
 			return fn(...values);
 		}
@@ -841,7 +844,7 @@ export class DevConsoleView extends ItemView {
 			case "boolean":
 				return `\x1b[33m${value}\x1b[0m`;
 			case "function":
-				return `\x1b[36m[Function: ${(value as Function).name || "anonymous"}]\x1b[0m`;
+				return `\x1b[36m[Function: ${(value as (...args: unknown[]) => unknown).name || "anonymous"}]\x1b[0m`;
 			case "object": {
 				if (Array.isArray(value)) {
 					if (value.length === 0) return "[]";
@@ -894,25 +897,25 @@ export class DevConsoleView extends ItemView {
 		};
 
 		// DevConsole intercepts console methods to display output in terminal view
-		 
+		// eslint-disable-next-line no-console -- DevConsole intentionally intercepts console.log
 		console.log = (...args: unknown[]) => {
 			this.originalConsole.log(...args);
 			writeToTerminal("[LOG]", "\x1b[90m", ...args);
 		};
 
-		 
+		// eslint-disable-next-line no-console -- DevConsole intentionally intercepts console.warn
 		console.warn = (...args: unknown[]) => {
 			this.originalConsole.warn(...args);
 			writeToTerminal("[WARN]", "\x1b[33m", ...args);
 		};
 
-		 
+		// eslint-disable-next-line no-console -- DevConsole intentionally intercepts console.error
 		console.error = (...args: unknown[]) => {
 			this.originalConsole.error(...args);
 			writeToTerminal("[ERROR]", "\x1b[31m", ...args);
 		};
 
-		 
+		// eslint-disable-next-line no-console -- DevConsole intentionally intercepts console.info
 		console.info = (...args: unknown[]) => {
 			this.originalConsole.info(...args);
 			writeToTerminal("[INFO]", "\x1b[36m", ...args);
@@ -921,13 +924,13 @@ export class DevConsoleView extends ItemView {
 
 	private restoreConsole(): void {
 		// Restore original console methods
-		 
+		// eslint-disable-next-line no-console -- DevConsole restores original console.log
 		console.log = this.originalConsole.log;
-		 
+		// eslint-disable-next-line no-console -- DevConsole restores original console.warn
 		console.warn = this.originalConsole.warn;
-		 
+		// eslint-disable-next-line no-console -- DevConsole restores original console.error
 		console.error = this.originalConsole.error;
-		 
+		// eslint-disable-next-line no-console -- DevConsole restores original console.info
 		console.info = this.originalConsole.info;
 	}
 

@@ -9,6 +9,7 @@ import { BaseInterpreterSession } from "../shell/interpreter-base";
 import { createInterpreterSession } from "../shell/interpreters";
 import { ANSI } from "../ui/theme/ansi-colors";
 import { getXtermTheme, getTerminalFontFamily } from "../ui/theme/theme-utils";
+import type { WorkspaceLeafExt } from "../types/obsidian-internals";
 
 export const XTERM_VIEW_TYPE = "runbook-xterm";
 
@@ -87,8 +88,7 @@ export class XtermView extends ItemView {
 	setNoteName(name: string): void {
 		this.noteName = name;
 		// Trigger Obsidian to refresh the tab/header text
-		 
-		(this.leaf as any).updateHeader?.();
+		(this.leaf as WorkspaceLeafExt).updateHeader?.();
 	}
 
 	get state(): TerminalState {
@@ -278,8 +278,7 @@ export class XtermView extends ItemView {
 			this.interpreterSession.spawn();
 			this.setState("running");
 			// Update header now that interpreterSession is set (affects getDisplayText)
-			 
-			(this.leaf as any).updateHeader?.();
+			(this.leaf as WorkspaceLeafExt).updateHeader?.();
 			console.debug(
 				`Runbook: Interpreter (${this.interpreterConfig!.type}) spawned, pid:`,
 				this.interpreterSession.pid,
