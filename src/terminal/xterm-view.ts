@@ -1,4 +1,10 @@
 import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
+
+/** Internal Obsidian API - WorkspaceLeaf with updateHeader method */
+interface WorkspaceLeafInternal extends WorkspaceLeaf {
+	updateHeader?: () => void;
+	parent?: WorkspaceLeaf;
+}
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -86,9 +92,8 @@ export class XtermView extends ItemView {
 	 */
 	setNoteName(name: string): void {
 		this.noteName = name;
-		// Trigger Obsidian to refresh the tab/header text
-		 
-		(this.leaf as any).updateHeader?.();
+		// Trigger Obsidian to refresh the tab/header text (internal API)
+		(this.leaf as WorkspaceLeafInternal).updateHeader?.();
 	}
 
 	get state(): TerminalState {
@@ -180,14 +185,15 @@ export class XtermView extends ItemView {
 		this.setState("starting");
 
 		if (this.interpreterConfig) {
-			// Interpreter REPL mode
-			await this.initInterpreterSession();
+			// Interpreter REPL mode (sync)
+			this.initInterpreterSession();
 		} else if (PythonPtySession.isAvailable()) {
-			// Shell PTY mode
+			// Shell PTY mode (async)
 			await this.initPythonPtySession();
 		} else {
+			// Fallback shell mode (sync)
 			console.debug("Runbook: Python PTY not available, using fallback shell");
-			await this.initFallbackSession();
+			this.initFallbackSession();
 		}
 	}
 
@@ -278,8 +284,7 @@ export class XtermView extends ItemView {
 			this.interpreterSession.spawn();
 			this.setState("running");
 			// Update header now that interpreterSession is set (affects getDisplayText)
-			 
-			(this.leaf as any).updateHeader?.();
+			(this.leaf as WorkspaceLeafInternal).updateHeader?.();
 			console.debug(
 				`Runbook: Interpreter (${this.interpreterConfig!.type}) spawned, pid:`,
 				this.interpreterSession.pid,

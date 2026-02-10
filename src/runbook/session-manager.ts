@@ -1,4 +1,9 @@
 import { App, WorkspaceLeaf } from "obsidian";
+
+/** Internal Obsidian API - WorkspaceLeaf with parent property */
+interface WorkspaceLeafInternal extends WorkspaceLeaf {
+	parent?: WorkspaceLeaf;
+}
 import { XtermView, XTERM_VIEW_TYPE } from "../terminal/xterm-view";
 import { InterpreterType } from "../shell/types";
 import { normalizeLanguage } from "../editor/code-block";
@@ -162,8 +167,8 @@ export class SessionManager {
 	getTerminalLeaf(): WorkspaceLeaf {
 		const existing = this.app.workspace.getLeavesOfType(XTERM_VIEW_TYPE);
 		if (existing.length > 0) {
-			 
-			const parent = (existing[0] as any).parent;
+			// Access internal parent property to create tab in same pane
+			const parent = (existing[0] as WorkspaceLeafInternal).parent;
 			if (parent) {
 				return this.app.workspace.createLeafInParent(parent, -1);
 			}
