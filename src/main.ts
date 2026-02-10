@@ -95,11 +95,17 @@ export default class RunbookPlugin extends Plugin {
 	}
 
 	/**
-	 * Register terminal and console views
+	 * Register terminal view
 	 */
 	private registerViews(): void {
 		// xterm terminal view (each instance is a separate terminal with PTY)
-		this.registerView(XTERM_VIEW_TYPE, (leaf) => new XtermView(leaf));
+		// Wrap in try-catch to handle hot-reload edge cases where view type may already exist
+		try {
+			this.registerView(XTERM_VIEW_TYPE, (leaf) => new XtermView(leaf));
+		} catch (e) {
+			// View type already registered (hot-reload) - safe to ignore
+			console.debug("Runbook: View type already registered, skipping");
+		}
 	}
 
 	/**
